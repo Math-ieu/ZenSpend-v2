@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 255 127 0;
+    --color-primary-light: 255 159 64;
+    --color-primary-dark: 230 115 0;
+    --color-secondary: 0 164 230;
+    --color-accent: 139 92 246;
+    --color-success: 34 197 94;
+    --color-warning: 234 179 8;
+    --color-error: 239 68 68;
+    --color-background: 255 255 255;
+    --color-foreground: 17 24 39;
+    --color-muted: 107 114 128;
+    --color-surface: 249 250 251;
+    --color-border: 229 231 235;
+  }
+
+  .dark {
+    --color-background: 17 24 39;
+    --color-foreground: 249 250 251;
+    --color-muted: 156 163 175;
+    --color-surface: 31 41 55;
+    --color-border: 55 65 81;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-200;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .container {
+    @apply px-4 mx-auto max-w-7xl sm:px-6 lg:px-8;
+  }
+  
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark focus:ring-primary;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary/90 focus:ring-secondary;
+  }
+  
+  .btn-outline {
+    @apply border border-border hover:bg-surface focus:ring-primary text-foreground;
+  }
+
+  .card {
+    @apply bg-surface border border-border rounded-lg shadow-sm overflow-hidden transition-all duration-200;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-200;
+  }
+  
+  .label {
+    @apply block text-sm font-medium text-foreground mb-1;
+  }
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
