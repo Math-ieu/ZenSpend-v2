@@ -12,6 +12,11 @@ import NotFound from './pages/NotFound';
 
 // Protected Pages
 import Dashboard from './pages/Dashboard';
+import TransactionsPage from './pages/transactions/TransactionsPage';
+import BudgetsPage from './pages/budgets/BudgetsPage';
+import AccountsPage from './pages/accounts/AccountsPage';
+import GoalsPage from './pages/goals/GoalsPage';
+import ProfilePage from './pages/profile/ProfilePage';
 
 // Theme Provider
 import { ThemeProvider } from './hooks/useTheme';
@@ -34,11 +39,11 @@ function App() {
           {/* Protected Routes */}
           <Route element={<AppLayout requireAuth hideFooter />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/transactions" element={<div>Transactions Page</div>} />
-            <Route path="/budgets" element={<div>Budgets Page</div>} />
-            <Route path="/accounts" element={<div>Accounts Page</div>} />
-            <Route path="/goals" element={<div>Savings Goals Page</div>} />
-            <Route path="/profile" element={<div>Profile Page</div>} />
+            <Route path="/transactions" element={<TransactionsPage />} />
+            <Route path="/budgets" element={<BudgetsPage />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
           
           {/* Not Found Route */}
