@@ -6,6 +6,7 @@ import AccountCard, { AddAccountCard } from '../../components/dashboard/AccountC
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
 import { accounts, monthlyExpenses, transactions } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 const AccountsPage: React.FC = () => {
   // Calculate total balance across all accounts
@@ -13,6 +14,7 @@ const AccountsPage: React.FC = () => {
   
   // Get recent transactions
   const recentTransactions = transactions.slice(0, 5);
+  const navigate = useNavigate();
 
   return (
     <div className="py-8">
@@ -22,7 +24,7 @@ const AccountsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Comptes</h1>
             <p className="text-muted">Gérez vos comptes bancaires</p>
           </div>
-          <Button leftIcon={<Plus size={16} />}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/accounts/new')}>
             Ajouter un compte
           </Button>
         </div>
@@ -84,9 +86,9 @@ const AccountsPage: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {accounts.map(account => (
-                <AccountCard key={account.id} account={account} />
+                <AccountCard key={account.id} account={account} onClick={() => navigate(`/accounts/${account.id}`)} />
               ))}
-              <AddAccountCard />
+              <AddAccountCard onClick={() => navigate('/accounts/new')} />
             </div>
 
             {/* Balance Evolution */}

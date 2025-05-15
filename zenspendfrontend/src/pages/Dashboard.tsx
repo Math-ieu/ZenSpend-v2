@@ -39,7 +39,7 @@ const Dashboard: React.FC = () => {
             Nouvelle transaction
           </Button>
         </div>
-        
+         
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -115,7 +115,7 @@ const Dashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-foreground">Vos comptes</h2>
-                <Button variant="outline" size="sm" leftIcon={<Plus size={16} />}>
+                <Button variant="outline" size="sm" leftIcon={<Plus size={16} />} onClick={() => navigate('/accounts/new')}>
                   Ajouter
                 </Button>
               </div>
@@ -131,7 +131,7 @@ const Dashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-foreground">Budgets</h2>
-                <Button variant="outline" size="sm" leftIcon={<Plus size={16} />}>
+                <Button variant="outline" size="sm" leftIcon={<Plus size={16} />} onClick={() => navigate('/budgets/new')}>
                   Créer
                 </Button>
               </div>
@@ -146,7 +146,7 @@ const Dashboard: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-foreground">Objectifs d'épargne</h2>
-                <Button variant="outline" size="sm" leftIcon={<Plus size={16} />}>
+                <Button variant="outline" size="sm" leftIcon={<Plus size={16} />} onClick={() => navigate('/goals/new')}>
                   Ajouter
                 </Button>
               </div>

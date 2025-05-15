@@ -5,12 +5,14 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import TransactionsList from '../../components/dashboard/TransactionsList';
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
 import { transactions, monthlyExpenses } from '../../lib/mockData';
+import { useNavigate } from 'react-router-dom';
 
 const TransactionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const navigate = useNavigate();
 
   // Filter transactions based on search and filters
   const filteredTransactions = transactions.filter(transaction => {
@@ -29,7 +31,7 @@ const TransactionsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Transactions</h1>
             <p className="text-muted">Gérez et analysez vos transactions</p>
           </div>
-          <Button leftIcon={<Plus size={16} />}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/transactions/new')}>
             Nouvelle transaction
           </Button>
         </div>

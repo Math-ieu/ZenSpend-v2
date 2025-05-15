@@ -13,13 +13,18 @@ import NotFound from './pages/NotFound';
 // Protected Pages
 import Dashboard from './pages/Dashboard';
 import TransactionsPage from './pages/transactions/TransactionsPage';
+import NewTransactionPage from './pages/transactions/NewTransactionPage';
 import BudgetsPage from './pages/budgets/BudgetsPage';
+import NewBudgetPage from './pages/budgets/NewBudgetPage';
 import AccountsPage from './pages/accounts/AccountsPage';
+import NewAccountPage from './pages/accounts/NewAccountPage';
 import GoalsPage from './pages/goals/GoalsPage';
+import NewGoalPage from './pages/goals/NewGoalPage';
 import ProfilePage from './pages/profile/ProfilePage';
 
 // Theme Provider
 import { ThemeProvider } from './hooks/useTheme';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
@@ -40,9 +45,13 @@ function App() {
           <Route element={<AppLayout requireAuth hideFooter />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/transactions" element={<TransactionsPage />} />
+            <Route path="/transactions/new" element={<NewTransactionPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
+            <Route path="/budgets/new" element={<NewBudgetPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/accounts/new" element={<NewAccountPage />} />
             <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/goals/new" element={<NewGoalPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           
@@ -50,6 +59,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
+      <Toaster position="top-right" />
     </ThemeProvider>
   );
 }
