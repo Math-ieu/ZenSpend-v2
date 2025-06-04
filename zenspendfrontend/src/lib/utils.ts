@@ -44,4 +44,4 @@ export function createColorShade(percentage: number): string {
   if (percentage >= 80) return 'bg-success';
   if (percentage >= 50) return 'bg-warning';
   return 'bg-error';
-}
+} 

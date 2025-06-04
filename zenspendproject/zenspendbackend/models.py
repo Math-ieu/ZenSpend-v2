@@ -1,433 +1,536 @@
-from mongoengine import Document, EmbeddedDocument, fields, CASCADE
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-import datetime
-from decimal import Decimal
+from django.contrib.gis.db import models
+from django.utils import timezone
 
 
+
+# zenspendproject/zenspendbackend/models.py
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('Email est obligatoire')
-        user = self.model(email=self.normalize_email(email), **extra_fields)
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.save()
+        user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_admin', True)
         return self.create_user(email, password, **extra_fields)
 
+class User(AbstractBaseUser):
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    profile_pic = models.CharField(max_length=255, blank=True)
+    phone_number = models.CharField(max_length=15, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_admin = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    preferred_currency = models.CharField(max_length=3, default='EUR')
+    notification_preferences = models.JSONField(default=dict(email=True, app=True, budget_alerts=True))
 
-class User(AbstractBaseUser, Document):
-    email = fields.EmailField(unique=True)
-    first_name = fields.StringField(max_length=50)
-    last_name = fields.StringField(max_length=50)
-    profile_pic = fields.StringField()
-    phone_number = fields.StringField(max_length=15)
-    is_active = fields.BooleanField(default=True)
-    is_admin = fields.BooleanField(default=False)
-    created_at = fields.DateTimeField(default=datetime.datetime.now)
-    preferred_currency = fields.StringField(max_length=3, default='EUR')  # Devise par défaut
-    notification_preferences = fields.DictField(default={'email': True, 'app': True, 'budget_alerts': True})
-    
-    # Réglages Django Auth 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
-    
+
     objects = UserManager()
-    
-    meta = {'collection': 'users'}
-    
+
+    class Meta:
+        db_table = 'users'
+
     def __str__(self):
         return self.email
-    
+
     def has_perm(self, perm, obj=None):
         return True
-    
+
     def has_module_perms(self, app_label):
         return True
-    
+
     @property
     def is_staff(self):
         return self.is_admin
-        
+
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+class BankAccount(models.Model):
+    name = models.CharField(max_length=100)
+    account_number = models.CharField(max_length=50, blank=True)
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, default='EUR')
+    account_type = models.CharField(max_length=20, choices=[
+        ('checking', 'Checking'),
+        ('savings', 'Savings'),
+        ('credit', 'Credit'),
+        ('investment', 'Investment'),
+        ('cash', 'Cash'),
+        ('other', 'Other'),
+    ])
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    institution = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
+    last_sync = models.DateTimeField(null=True, blank=True)
+    connection_details = models.JSONField(default=dict, blank=True)
 
-class BankAccount(Document):
-    name = fields.StringField(max_length=100, required=True)
-    account_number = fields.StringField(max_length=50)  # Peut être masqué/chiffré pour sécurité
-    balance = fields.DecimalField(default=0, precision=2)
-    currency = fields.StringField(max_length=3, default='EUR')
-    account_type = fields.StringField(choices=['checking', 'savings', 'credit', 'investment', 'cash', 'other'])
-    user = fields.ReferenceField(User, required=True)
-    institution = fields.StringField(max_length=100)
-    is_active = fields.BooleanField(default=True)
-    last_sync = fields.DateTimeField()
-    connection_details = fields.DictField()  # Pour API bancaire (devrait être chiffré)
-    
-    meta = {'collection': 'bank_accounts'}
-    
+    class Meta:
+        db_table = 'bank_accounts'
+
     def __str__(self):
         return f"{self.name} ({self.account_type})"
 
+class Category(models.Model):
+    name = models.CharField(max_length=100)
+    icon = models.CharField(max_length=50, blank=True)
+    color = models.CharField(max_length=7, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    is_expense = models.BooleanField(default=True)
+    is_tax_deductible = models.BooleanField(default=False)
+    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
+    is_system = models.BooleanField(default=False)
 
-class Category(Document):
-    name = fields.StringField(max_length=100, required=True)
-    icon = fields.StringField()
-    color = fields.StringField(max_length=7)  # Format hexadécimal #RRGGBB
-    user = fields.ReferenceField(User)
-    is_expense = fields.BooleanField(default=True)  # True pour dépense, False pour revenu
-    is_tax_deductible = fields.BooleanField(default=False)
-    parent_category = fields.ReferenceField('self', null=True)  # Pour sous-catégories
-    is_system = fields.BooleanField(default=False)  # Catégories système non supprimables
-    
-    meta = {'collection': 'categories'}
-    
+    class Meta:
+        db_table = 'categories'
+
     def __str__(self):
         return self.name
 
+class Tag(models.Model):
+    name = models.CharField(max_length=50)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    color = models.CharField(max_length=7, blank=True)
 
-class Tag(Document):
-    name = fields.StringField(max_length=50, required=True)
-    user = fields.ReferenceField(User, required=True)
-    color = fields.StringField(max_length=7)
-    
-    meta = {'collection': 'tags', 'indexes': [{'fields': ['name', 'user'], 'unique': True}]}
-    
+    class Meta:
+        db_table = 'tags'
+        unique_together = ['name', 'user']
+
     def __str__(self):
         return self.name
 
+class Receipt(models.Model):
+    transaction = models.OneToOneField('Transaction', on_delete=models.CASCADE, related_name='receipt')
+    image_url = models.CharField(max_length=255, blank=True)
+    ocr_text = models.TextField(blank=True)
+    processed_data = models.JSONField(default=dict, blank=True)
+    date_added = models.DateTimeField(default=timezone.now)
 
-class Receipt(EmbeddedDocument):
-    image_url = fields.StringField()
-    ocr_text = fields.StringField()  # Texte extrait
-    processed_data = fields.DictField()  # Données structurées extraites
-    date_added = fields.DateTimeField(default=datetime.datetime.now)
+    class Meta:
+        db_table = 'receipts'
 
+    def __str__(self):
+        return f"Receipt for {self.transaction}"
 
-class RecurringSchedule(EmbeddedDocument):
-    frequency = fields.StringField(choices=['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'])
-    day_of_month = fields.IntField(min_value=1, max_value=31)
-    day_of_week = fields.IntField(min_value=0, max_value=6)  # 0=Lundi, 6=Dimanche
-    start_date = fields.DateTimeField(default=datetime.datetime.now)
-    end_date = fields.DateTimeField()
-    next_occurrence = fields.DateTimeField()
+class RecurringSchedule(models.Model):
+    transaction = models.OneToOneField('Transaction', on_delete=models.CASCADE, related_name='recurring_schedule', null=True, blank=True)
+    budget = models.OneToOneField('Budget', on_delete=models.CASCADE, related_name='recurring_schedule', null=True, blank=True)
+    frequency = models.CharField(max_length=20, choices=[
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('biweekly', 'Biweekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+    ])
+    day_of_month = models.IntegerField(null=True, blank=True)
+    day_of_week = models.IntegerField(null=True, blank=True)
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(null=True, blank=True)
+    next_occurrence = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        db_table = 'recurring_schedules'
 
-class Transaction(Document):
-    amount = fields.DecimalField(required=True, precision=2)
-    original_amount = fields.DecimalField(precision=2)  # Pour montant en devise originale
-    original_currency = fields.StringField(max_length=3)
-    description = fields.StringField(max_length=200)
-    date = fields.DateTimeField(default=datetime.datetime.now)
-    category = fields.ReferenceField(Category)
-    tags = fields.ListField(fields.ReferenceField(Tag))
-    user = fields.ReferenceField(User, required=True)
-    account = fields.ReferenceField(BankAccount)
-    is_recurring = fields.BooleanField(default=False)
-    recurring_schedule = fields.EmbeddedDocumentField(RecurringSchedule)
-    receipt = fields.EmbeddedDocumentField(Receipt)
-    location = fields.GeoPointField()  # Coordonnées géographiques
-    payee = fields.StringField(max_length=100)  # Destinataire/source du paiement
-    status = fields.StringField(choices=['pending', 'cleared', 'reconciled'], default='cleared')
-    notes = fields.StringField()
-    is_split = fields.BooleanField(default=False)
-    parent_transaction = fields.ReferenceField('self')  # Pour transactions fractionnées
-    
-    meta = {'collection': 'transactions', 'indexes': ['-date']}
-    
+    def __str__(self):
+        return f"{self.frequency} schedule"
+
+class Transaction(models.Model):
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    original_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    original_currency = models.CharField(max_length=3, blank=True)
+    description = models.CharField(max_length=200, blank=True)
+    date = models.DateTimeField(default=timezone.now)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    tags = models.ManyToManyField(Tag, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
+    is_recurring = models.BooleanField(default=False)
+    location = models.PointField(null=True, blank=True)
+    payee = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('cleared', 'Cleared'),
+        ('reconciled', 'Reconciled'),
+    ], default='cleared')
+    notes = models.TextField(blank=True)
+    is_split = models.BooleanField(default=False)
+    parent_transaction = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        db_table = 'transactions'
+        indexes = [
+            models.Index(fields=['-date']),
+        ]
+
     def __str__(self):
         return f"{self.description} - {self.amount}€"
 
+class TransactionRule(models.Model):
+    name = models.CharField(max_length=100)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    keywords = models.JSONField(default=list)
+    amount_min = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    amount_max = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    payee = models.CharField(max_length=100, blank=True)
+    assign_category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    assign_tags = models.ManyToManyField(Tag, blank=True)
+    is_active = models.BooleanField(default=True)
 
-class TransactionRule(Document):
-    name = fields.StringField(max_length=100)
-    user = fields.ReferenceField(User, required=True)
-    keywords = fields.ListField(fields.StringField())
-    amount_min = fields.DecimalField()
-    amount_max = fields.DecimalField()
-    payee = fields.StringField()
-    assign_category = fields.ReferenceField(Category)
-    assign_tags = fields.ListField(fields.ReferenceField(Tag))
-    is_active = fields.BooleanField(default=True)
-    
-    meta = {'collection': 'transaction_rules'}
-    
+    class Meta:
+        db_table = 'transaction_rules'
+
     def __str__(self):
         return self.name
 
+class Budget(models.Model):
+    name = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    categories = models.ManyToManyField(Category, blank=True)
+    accounts = models.ManyToManyField(BankAccount, blank=True)
+    is_recurring = models.BooleanField(default=False)
+    current_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    alert_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=80)
 
-class Budget(Document):
-    name = fields.StringField(max_length=100, required=True)
-    amount = fields.DecimalField(required=True, precision=2)
-    start_date = fields.DateTimeField(default=datetime.datetime.now)
-    end_date = fields.DateTimeField()
-    user = fields.ReferenceField(User, required=True)
-    categories = fields.ListField(fields.ReferenceField(Category))
-    accounts = fields.ListField(fields.ReferenceField(BankAccount))
-    is_recurring = fields.BooleanField(default=False)
-    recurring_schedule = fields.EmbeddedDocumentField(RecurringSchedule)
-    current_amount = fields.DecimalField(default=0, precision=2)  # Montant actuel dépensé
-    alert_threshold = fields.DecimalField(default=80, precision=2)  # Alerte à 80% du budget
-    
-    meta = {'collection': 'budgets'}
-    
+    class Meta:
+        db_table = 'budgets'
+
     def __str__(self):
         return self.name
-    
+
     @property
     def percentage_used(self):
         if self.amount == 0:
             return 0
         return (self.current_amount / self.amount) * 100
 
+class SavingsGoal(models.Model):
+    name = models.CharField(max_length=100)
+    target_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    current_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    deadline = models.DateTimeField(null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    icon = models.CharField(max_length=50, blank=True)
+    account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
+    auto_save = models.BooleanField(default=False)
+    auto_save_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    auto_save_frequency = models.CharField(max_length=20, choices=[
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ], blank=True)
+    notes = models.TextField(blank=True)
 
-class SavingsGoal(Document):
-    name = fields.StringField(max_length=100, required=True)
-    target_amount = fields.DecimalField(required=True, precision=2)
-    current_amount = fields.DecimalField(default=0, precision=2)
-    deadline = fields.DateTimeField()
-    user = fields.ReferenceField(User, required=True)
-    icon = fields.StringField()
-    account = fields.ReferenceField(BankAccount)
-    auto_save = fields.BooleanField(default=False)
-    auto_save_amount = fields.DecimalField(precision=2)
-    auto_save_frequency = fields.StringField(choices=['daily', 'weekly', 'monthly'])
-    notes = fields.StringField()
-    
-    meta = {'collection': 'savings_goals'}
-    
+    class Meta:
+        db_table = 'savings_goals'
+
     def __str__(self):
         return self.name
-    
+
     @property
     def percentage_complete(self):
         if self.target_amount == 0:
             return 0
         return (self.current_amount / self.target_amount) * 100
 
+class DebtTracker(models.Model):
+    name = models.CharField(max_length=100)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    remaining_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    interest_rate = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    minimum_payment = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    payment_due_date = models.IntegerField(null=True, blank=True)
+    lender = models.CharField(max_length=100, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
 
-class DebtTracker(Document):
-    name = fields.StringField(max_length=100, required=True)
-    total_amount = fields.DecimalField(required=True, precision=2)
-    remaining_amount = fields.DecimalField(required=True, precision=2)
-    interest_rate = fields.DecimalField(precision=4)
-    minimum_payment = fields.DecimalField(precision=2)
-    payment_due_date = fields.IntField(min_value=1, max_value=31)  # Jour du mois
-    lender = fields.StringField(max_length=100)
-    user = fields.ReferenceField(User, required=True)
-    account = fields.ReferenceField(BankAccount)
-    
-    meta = {'collection': 'debt_trackers'}
-    
+    class Meta:
+        db_table = 'debt_trackers'
+
     def __str__(self):
         return self.name
 
+class SharedBudget(models.Model):
+    name = models.CharField(max_length=100)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_budgets')
+    members = models.ManyToManyField(User, related_name='shared_budgets')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(null=True, blank=True)
+    categories = models.ManyToManyField(Category, blank=True)
+    current_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
-class SharedBudget(Document):
-    name = fields.StringField(max_length=100, required=True)
-    owner = fields.ReferenceField(User, required=True)
-    members = fields.ListField(fields.ReferenceField(User))
-    amount = fields.DecimalField(required=True, precision=2)
-    start_date = fields.DateTimeField(default=datetime.datetime.now)
-    end_date = fields.DateTimeField()
-    categories = fields.ListField(fields.ReferenceField(Category))
-    current_amount = fields.DecimalField(default=0, precision=2)
-    
-    meta = {'collection': 'shared_budgets'}
-    
+    class Meta:
+        db_table = 'shared_budgets'
+
     def __str__(self):
         return self.name
 
+class DebtRecord(models.Model):
+    creditor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='creditor_records')
+    debtor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='debtor_records')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    description = models.CharField(max_length=200, blank=True)
+    date_created = models.DateTimeField(default=timezone.now)
+    due_date = models.DateTimeField(null=True, blank=True)
+    is_settled = models.BooleanField(default=False)
+    settled_date = models.DateTimeField(null=True, blank=True)
+    related_transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
 
-class DebtRecord(Document):
-    creditor = fields.ReferenceField(User, required=True)  # Qui a prêté
-    debtor = fields.ReferenceField(User, required=True)    # Qui doit rembourser
-    amount = fields.DecimalField(required=True, precision=2)
-    description = fields.StringField(max_length=200)
-    date_created = fields.DateTimeField(default=datetime.datetime.now)
-    due_date = fields.DateTimeField()
-    is_settled = fields.BooleanField(default=False)
-    settled_date = fields.DateTimeField()
-    related_transaction = fields.ReferenceField(Transaction)
-    
-    meta = {'collection': 'debt_records'}
-    
+    class Meta:
+        db_table = 'debt_records'
+
     def __str__(self):
         return f"{self.debtor.full_name} doit {self.amount}€ à {self.creditor.full_name}"
 
-
-class Notification(Document):
-    user = fields.ReferenceField(User, required=True)
-    title = fields.StringField(max_length=100)
-    message = fields.StringField()
-    created_at = fields.DateTimeField(default=datetime.datetime.now)
-    is_read = fields.BooleanField(default=False)
-    type = fields.StringField(choices=[
-        'budget_alert', 'goal_reached', 'recurring_payment', 
-        'system_message', 'debt_reminder', 'category_suggestion',
-        'unusual_activity', 'milestone', 'weekly_summary'
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=100)
+    message = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+    type = models.CharField(max_length=50, choices=[
+        ('budget_alert', 'Budget Alert'),
+        ('goal_reached', 'Goal Reached'),
+        ('recurring_payment', 'Recurring Payment'),
+        ('system_message', 'System Message'),
+        ('debt_reminder', 'Debt Reminder'),
+        ('category_suggestion', 'Category Suggestion'),
+        ('unusual_activity', 'Unusual Activity'),
+        ('milestone', 'Milestone'),
+        ('weekly_summary', 'Weekly Summary'),
     ])
-    priority = fields.StringField(choices=['low', 'medium', 'high'], default='medium')
-    related_object_id = fields.StringField()  # ID de l'objet concerné
-    action_url = fields.StringField()  # URL relative dans l'app pour action directe
-    
-    meta = {'collection': 'notifications', 'indexes': ['-created_at']}
-    
+    priority = models.CharField(max_length=20, choices=[
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    ], default='medium')
+    related_object_id = models.CharField(max_length=36, blank=True)
+    action_url = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'notifications'
+        indexes = [
+            models.Index(fields=['-created_at']),
+        ]
+
     def __str__(self):
         return self.title
 
+class FinancialSnapshot(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    date = models.DateTimeField(default=timezone.now)
+    total_assets = models.DecimalField(max_digits=15, decimal_places=2)
+    total_liabilities = models.DecimalField(max_digits=15, decimal_places=2)
+    net_worth = models.DecimalField(max_digits=15, decimal_places=2)
+    total_income_mtd = models.DecimalField(max_digits=15, decimal_places=2)
+    total_expenses_mtd = models.DecimalField(max_digits=15, decimal_places=2)
+    accounts_snapshot = models.JSONField(default=dict)
 
-class FinancialSnapshot(Document):
-    user = fields.ReferenceField(User, required=True)
-    date = fields.DateTimeField(default=datetime.datetime.now)
-    total_assets = fields.DecimalField(precision=2)
-    total_liabilities = fields.DecimalField(precision=2)
-    net_worth = fields.DecimalField(precision=2)
-    total_income_mtd = fields.DecimalField(precision=2)  # Month to date
-    total_expenses_mtd = fields.DecimalField(precision=2)
-    accounts_snapshot = fields.DictField()  # {account_id: balance}
-    
-    meta = {'collection': 'financial_snapshots', 'indexes': ['-date']}
-    
+    class Meta:
+        db_table = 'financial_snapshots'
+        indexes = [
+            models.Index(fields=['-date']),
+        ]
+
     def __str__(self):
         return f"Snapshot {self.date.strftime('%Y-%m-%d')}"
 
+class ImportSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    source = models.CharField(max_length=20, choices=[
+        ('csv', 'CSV'),
+        ('ofx', 'OFX'),
+        ('pdf', 'PDF'),
+        ('api', 'API'),
+        ('manual', 'Manual'),
+    ])
+    date_imported = models.DateTimeField(default=timezone.now)
+    account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
+    file_name = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ])
+    error_message = models.TextField(blank=True)
+    transactions_count = models.IntegerField(default=0)
+    duplicates_count = models.IntegerField(default=0)
 
-class ImportSession(Document):
-    user = fields.ReferenceField(User, required=True)
-    source = fields.StringField(choices=['csv', 'ofx', 'pdf', 'api', 'manual'])
-    date_imported = fields.DateTimeField(default=datetime.datetime.now)
-    account = fields.ReferenceField(BankAccount)
-    file_name = fields.StringField()
-    status = fields.StringField(choices=['pending', 'processing', 'completed', 'failed'])
-    error_message = fields.StringField()
-    transactions_count = fields.IntField(default=0)
-    duplicates_count = fields.IntField(default=0)
-    
-    meta = {'collection': 'import_sessions'}
-    
+    class Meta:
+        db_table = 'import_sessions'
+
     def __str__(self):
         return f"Import {self.date_imported.strftime('%Y-%m-%d %H:%M')} - {self.source}"
 
-
-class Achievement(Document):
-    user = fields.ReferenceField(User, required=True)
-    name = fields.StringField(max_length=100)
-    description = fields.StringField()
-    icon = fields.StringField()
-    date_earned = fields.DateTimeField(default=datetime.datetime.now)
-    achievement_type = fields.StringField(choices=[
-        'saving_streak', 'budget_complete', 'first_goal', 'categorization_master',
-        'data_entry', 'app_usage', 'financial_literacy', 'custom'
+class Achievement(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True)
+    date_earned = models.DateTimeField(default=timezone.now)
+    achievement_type = models.CharField(max_length=50, choices=[
+        ('saving_streak', 'Saving Streak'),
+        ('budget_complete', 'Budget Complete'),
+        ('first_goal', 'First Goal'),
+        ('categorization_master', 'Categorization Master'),
+        ('data_entry', 'Data Entry'),
+        ('app_usage', 'App Usage'),
+        ('financial_literacy', 'Financial Literacy'),
+        ('custom', 'Custom'),
     ])
-    level = fields.IntField(default=1)  # Pour badges à niveaux multiples
-    
-    meta = {'collection': 'achievements'}
-    
+    level = models.IntegerField(default=1)
+
+    class Meta:
+        db_table = 'achievements'
+
     def __str__(self):
         return self.name
 
-
-class Challenge(Document):
-    name = fields.StringField(max_length=100, required=True)
-    description = fields.StringField()
-    start_date = fields.DateTimeField()
-    end_date = fields.DateTimeField()
-    target_value = fields.DecimalField(precision=2)
-    current_value = fields.DecimalField(default=0, precision=2)
-    challenge_type = fields.StringField(choices=[
-        'reduce_spending', 'increase_saving', 'category_budget',
-        'no_spend', 'debt_reduction', 'custom'
+class Challenge(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    target_value = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    current_value = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    challenge_type = models.CharField(max_length=50, choices=[
+        ('reduce_spending', 'Reduce Spending'),
+        ('increase_saving', 'Increase Saving'),
+        ('category_budget', 'Category Budget'),
+        ('no_spend', 'No Spend'),
+        ('debt_reduction', 'Debt Reduction'),
+        ('custom', 'Custom'),
     ])
-    category = fields.ReferenceField(Category)
-    user = fields.ReferenceField(User, required=True)
-    is_completed = fields.BooleanField(default=False)
-    
-    meta = {'collection': 'challenges'}
-    
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    is_completed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'challenges'
+
     def __str__(self):
         return self.name
 
-
-class FinancialReport(Document):
-    user = fields.ReferenceField(User, required=True)
-    title = fields.StringField(max_length=100)
-    report_type = fields.StringField(choices=[
-        'monthly_summary', 'annual_review', 'tax_report', 'category_analysis',
-        'forecast', 'net_worth', 'custom'
+class FinancialReport(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=100)
+    report_type = models.CharField(max_length=50, choices=[
+        ('monthly_summary', 'Monthly Summary'),
+        ('annual_review', 'Annual Review'),
+        ('tax_report', 'Tax Report'),
+        ('category_analysis', 'Category Analysis'),
+        ('forecast', 'Forecast'),
+        ('net_worth', 'Net Worth'),
+        ('custom', 'Custom'),
     ])
-    date_range_start = fields.DateTimeField()
-    date_range_end = fields.DateTimeField()
-    generation_date = fields.DateTimeField(default=datetime.datetime.now)
-    data = fields.DictField()  # Données du rapport
-    is_scheduled = fields.BooleanField(default=False)
-    schedule_frequency = fields.StringField(choices=['weekly', 'monthly', 'quarterly', 'yearly'])
-    
-    meta = {'collection': 'financial_reports'}
-    
+    date_range_start = models.DateTimeField(null=True, blank=True)
+    date_range_end = models.DateTimeField(null=True, blank=True)
+    generation_date = models.DateTimeField(default=timezone.now)
+    data = models.JSONField(default=dict)
+    is_scheduled = models.BooleanField(default=False)
+    schedule_frequency = models.CharField(max_length=20, choices=[
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+    ], blank=True)
+
+    class Meta:
+        db_table = 'financial_reports'
+
     def __str__(self):
         return self.title
 
+class ChatSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    started_at = models.DateTimeField(default=timezone.now)
+    last_activity = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    context = models.JSONField(default=dict)
 
-class ChatSession(Document):
-    user = fields.ReferenceField(User, required=True)
-    started_at = fields.DateTimeField(default=datetime.datetime.now)
-    last_activity = fields.DateTimeField(default=datetime.datetime.now)
-    is_active = fields.BooleanField(default=True)
-    context = fields.DictField()  # Contexte pour l'IA
-    
-    meta = {'collection': 'chat_sessions'}
-    
+    class Meta:
+        db_table = 'chat_sessions'
+
     def __str__(self):
         return f"Session {self.id} - {self.user.email}"
 
+class ChatMessage(models.Model):
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(default=timezone.now)
+    is_bot = models.BooleanField()
+    message_type = models.CharField(max_length=20, choices=[
+        ('text', 'Text'),
+        ('suggestion', 'Suggestion'),
+        ('action', 'Action'),
+    ], default='text')
+    action_data = models.JSONField(default=dict, blank=True)
 
-class ChatMessage(Document):
-    session = fields.ReferenceField(ChatSession, required=True)
-    content = fields.StringField(required=True)
-    timestamp = fields.DateTimeField(default=datetime.datetime.now)
-    is_bot = fields.BooleanField()  # True si message de l'assistant, False si message utilisateur
-    message_type = fields.StringField(choices=['text', 'suggestion', 'action'], default='text')
-    action_data = fields.DictField()  # Pour messages de type action
-    
-    meta = {'collection': 'chat_messages'}
-    
+    class Meta:
+        db_table = 'chat_messages'
+
     def __str__(self):
         return f"{'Bot' if self.is_bot else 'User'}: {self.content[:30]}..."
 
+class UserPreference(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    theme = models.CharField(max_length=20, choices=[
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+        ('system', 'System'),
+    ], default='system')
+    language = models.CharField(max_length=5, default='fr')
+    dashboard_widgets = models.JSONField(default=list)
+    start_page = models.CharField(max_length=50, default='dashboard')
+    export_format = models.CharField(max_length=20, choices=[
+        ('csv', 'CSV'),
+        ('pdf', 'PDF'),
+        ('excel', 'Excel'),
+    ], default='excel')
 
-class UserPreference(Document):
-    user = fields.ReferenceField(User, required=True)
-    theme = fields.StringField(choices=['light', 'dark', 'system'], default='system')
-    language = fields.StringField(default='fr')
-    dashboard_widgets = fields.ListField(fields.StringField())  # Liste ordonnée des widgets
-    start_page = fields.StringField(default='dashboard')
-    export_format = fields.StringField(choices=['csv', 'pdf', 'excel'], default='excel')
-    
-    meta = {'collection': 'user_preferences'}
-    
+    class Meta:
+        db_table = 'user_preferences'
+
     def __str__(self):
         return f"Preferences for {self.user.email}"
 
-
-class FinancialInsight(Document):
-    user = fields.ReferenceField(User, required=True)
-    title = fields.StringField()
-    description = fields.StringField()
-    created_at = fields.DateTimeField(default=datetime.datetime.now)
-    insight_type = fields.StringField(choices=[
-        'spending_pattern', 'saving_opportunity', 'budget_suggestion',
-        'anomaly_detection', 'forecast_alert', 'custom'
+class FinancialInsight(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    insight_type = models.CharField(max_length=50, choices=[
+        ('spending_pattern', 'Spending Pattern'),
+        ('saving_opportunity', 'Saving Opportunity'),
+        ('budget_suggestion', 'Budget Suggestion'),
+        ('anomaly_detection', 'Anomaly Detection'),
+        ('forecast_alert', 'Forecast Alert'),
+        ('custom', 'Custom'),
     ])
-    priority = fields.IntField(min_value=1, max_value=10)  # Plus le chiffre est élevé, plus c'est important
-    viewed = fields.BooleanField(default=False)
-    related_data = fields.DictField()  # Données spécifiques à l'insight
-    
-    meta = {'collection': 'financial_insights', 'indexes': ['-created_at']}
-    
+    priority = models.IntegerField()
+    viewed = models.BooleanField(default=False)
+    related_data = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = 'financial_insights'
+        indexes = [
+            models.Index(fields=['-created_at']),
+        ]
+
     def __str__(self):
         return self.title

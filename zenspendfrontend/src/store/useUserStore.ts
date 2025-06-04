@@ -28,7 +28,7 @@ export const useUserStore = create<UserState>((set) => ({
   isAuthenticated: false,
   isLoading: true,
   preferences: {
-    darkMode: false,
+    darkMode: false, 
     language: 'fr',
     currency: 'EUR',
     notifications: true,
