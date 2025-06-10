@@ -1,5 +1,6 @@
+// This file is now deprecated in favor of AuthContext
+// Keeping it for backward compatibility but all new code should use AuthContext
 import { create } from 'zustand';
-import { currentUser } from '../lib/mockData';
 
 interface UserState {
   user: {
@@ -22,89 +23,31 @@ interface UserState {
   updatePreferences: (preferences: Partial<UserState['preferences']>) => void;
 }
 
-// In a real app, we would use an API to fetch and update user data
+// Deprecated: Use AuthContext instead
 export const useUserStore = create<UserState>((set) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
   preferences: {
-    darkMode: false, 
+    darkMode: false,
     language: 'fr',
     currency: 'EUR',
     notifications: true,
   },
   
-  login: async (email, password) => {
-    // Simulate API call
-    set({ isLoading: true });
-    
-    // In real app, we would make an API request here
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        // Mock successful login
-        if (email && password) {
-          set({ 
-            user: currentUser,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-          resolve();
-        }
-      }, 800);
-    });
+  login: async () => {
+    console.warn('useUserStore is deprecated. Use AuthContext instead.');
   },
   
-  signup: async (name, email, password) => {
-    // Simulate API call
-    set({ isLoading: true });
-    
-    // In real app, we would make an API request here
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        if (name && email && password) {
-          const newUser = {
-            id: `user-${Date.now()}`,
-            name,
-            email,
-            avatar: undefined
-          };
-          
-          set({ 
-            user: newUser,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-          resolve();
-        }
-      }, 800);
-    });
+  signup: async () => {
+    console.warn('useUserStore is deprecated. Use AuthContext instead.');
   },
   
   logout: () => {
-    // In real app, clear tokens etc.
-    set({ 
-      user: null,
-      isAuthenticated: false,
-    });
+    console.warn('useUserStore is deprecated. Use AuthContext instead.');
   },
   
-  updatePreferences: (newPreferences) => {
-    set((state) => ({
-      preferences: {
-        ...state.preferences,
-        ...newPreferences,
-      }
-    }));
+  updatePreferences: () => {
+    console.warn('useUserStore is deprecated. Use AuthContext instead.');
   },
 }));
-
-// Initialize the store
-setTimeout(() => {
-  // Simulating checking for existing session
-  useUserStore.setState({
-    isLoading: false,
-    // For demo purposes, uncomment to auto-login
-    // user: currentUser,
-    // isAuthenticated: true,
-  });
-}, 1000);

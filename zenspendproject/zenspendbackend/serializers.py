@@ -1,4 +1,8 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+import logging
+
 from .models import (
     User, BankAccount, Category, Tag, Receipt, RecurringSchedule, Transaction,
     TransactionRule, Budget, SavingsGoal, DebtTracker, SharedBudget, DebtRecord,
@@ -6,12 +10,114 @@ from .models import (
     FinancialReport, ChatSession, ChatMessage, UserPreference, FinancialInsight
 )
 
-class UserSerializer(serializers.ModelSerializer):
-    full_name = serializers.ReadOnlyField()
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password_confirm = serializers.CharField(write_only=True)
+    
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'profile_pic',
+        fields = ('email', 'first_name', 'last_name', 'phone_number', 
+                 'preferred_currency', 'password', 'password_confirm')
+        extra_kwargs = {
+            'password': {'write_only': True},
+        }
+    
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('password_confirm')
+        user = User.objects.create_user(**validated_data)
+        # Créer les préférences par défaut
+        UserPreference.objects.create(user=user)
+        return user
+
+
+logger = logging.getLogger(__name__)
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = 'email'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[self.username_field] = serializers.EmailField()
+        self.fields.pop('username', None)
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Ajout d'infos personnalisées au token JWT
+        token['first_name'] = user.first_name
+        token['email'] = user.email
+        token['last_name'] = user.last_name
+        token['id'] = user.id
+        token['preferred_currency'] = user.preferred_currency
+        token['phone_number'] = user.phone_number
+        return token
+
+    def validate(self, attrs):
+        # Récupérer email et password
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        # Log pour déboguer
+        logger.debug(f"Tentative de connexion: email={email}")
+
+        if email and password:
+            from .models import User
+
+            try:
+                user = User.objects.get(email=email)
+                logger.debug(f"User trouvé: {user.email}")
+
+                if not user.check_password(password):
+                    raise serializers.ValidationError(
+                        {"detail": "Mot de passe incorrect."}
+                    )
+
+            except User.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"detail": f"Aucun compte trouvé avec l'email: {email}"}
+                )
+            except Exception as e:
+                logger.error(f"Erreur d'authentification: {str(e)}")
+                raise serializers.ValidationError(
+                    {"detail": f"Erreur de connexion: {str(e)}"}
+                )
+        else:
+            raise serializers.ValidationError(
+                {"detail": "Email et mot de passe sont requis."}
+            )
+
+        # Obtenir le token JWT
+        refresh = self.get_token(user)
+
+        # Construire la réponse
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': {
+                'email': user.email,
+                'fist_name': user.first_name,
+                'last_name': user.last_name,
+                'phone_number': user.phone_number,
+                'preferred_currency': user.preferred_currency,
+                'id': user.id,
+                
+            }
+        }
+
+        return data
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'profile_pic',
                   'phone_number', 'is_active', 'created_at', 'preferred_currency',
                   'notification_preferences']
         read_only_fields = ['id', 'created_at', 'is_active']

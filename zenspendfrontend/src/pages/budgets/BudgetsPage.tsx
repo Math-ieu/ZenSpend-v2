@@ -5,12 +5,8 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import BudgetCard from '../../components/dashboard/BudgetCard';
 import CategoryChart from '../../components/dashboard/CategoryChart';
 import { budgets } from '../../lib/mockData';
-import { useNavigate } from 'react-router-dom';
-
 
 const BudgetsPage: React.FC = () => {
-
-  const navigate = useNavigate();
   // Calculate total budget and spent amounts
   const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
   const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent, 0);
@@ -30,7 +26,7 @@ const BudgetsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Budgets</h1>
             <p className="text-muted">Gérez vos budgets mensuels</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/budgets/new')}>
+          <Button leftIcon={<Plus size={16} />}>
             Nouveau budget
           </Button>
         </div>

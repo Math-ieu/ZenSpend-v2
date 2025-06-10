@@ -1,8 +1,8 @@
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import { useUserStore } from '../../store/useUserStore';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AppLayoutProps {
   requireAuth?: boolean;
@@ -10,7 +10,8 @@ interface AppLayoutProps {
 }
 
 const AppLayout: React.FC<AppLayoutProps> = ({ requireAuth = false, hideFooter = false }) => {
-  const { isAuthenticated, isLoading } = useUserStore();
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
   
   // Show loading state
   if (isLoading) {
@@ -21,13 +22,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ requireAuth = false, hideFooter =
     );
   }
   
-  // Redirect if authentication is required and user is not authenticated
-  if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
   // Redirect if user is authenticated and trying to access auth pages
-  if (isAuthenticated && (window.location.pathname === '/login' || window.location.pathname === '/signup')) {
+  if (isAuthenticated && (location.pathname === '/login' || location.pathname === '/signup')) {
     return <Navigate to="/dashboard" replace />;
   }
   

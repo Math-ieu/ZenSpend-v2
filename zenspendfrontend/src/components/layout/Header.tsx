@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown, Home, PieChart, Wallet, Banknote, Target, Settings, LogOut } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import ThemeToggle from '../ui/ThemeToggle';
-import { useUserStore } from '../../store/useUserStore';
+import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
+import toast from 'react-hot-toast';
 
 interface NavItemProps {
   to: string;
@@ -34,7 +35,7 @@ const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useUserStore();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const closeMenu = () => setIsMenuOpen(false);
   
@@ -69,6 +70,16 @@ const Header: React.FC = () => {
     { to: '/#about', label: 'About' },
     { to: '/#contact', label: 'Contact' },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Déconnexion réussie');
+      closeMenu();
+    } catch (error) {
+      toast.error('Erreur lors de la déconnexion');
+    }
+  };
   
   return (
     <header 
@@ -83,7 +94,7 @@ const Header: React.FC = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-      
+           
             <span className="text-xl font-bold text-foreground">ZenSpend</span>
           </Link>
 
@@ -149,10 +160,7 @@ const Header: React.FC = () => {
                     </Link>
                     <button 
                       className="flex w-full items-center px-4 py-2 text-sm text-foreground hover:bg-background"
-                      onClick={() => {
-                        logout();
-                        closeMenu();
-                      }}
+                      onClick={handleLogout}
                     >
                       <LogOut size={16} className="mr-2" />
                       Sign Out

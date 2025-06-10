@@ -19,6 +19,8 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_admin', True)
         return self.create_user(email, password, **extra_fields)
 
+
+
 class User(AbstractBaseUser):
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=50)
@@ -176,6 +178,8 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.description} - {self.amount}€"
 
+
+
 class TransactionRule(models.Model):
     name = models.CharField(max_length=100)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -192,6 +196,8 @@ class TransactionRule(models.Model):
 
     def __str__(self):
         return self.name
+
+
 
 class Budget(models.Model):
     name = models.CharField(max_length=100)
@@ -245,6 +251,7 @@ class SavingsGoal(models.Model):
         if self.target_amount == 0:
             return 0
         return (self.current_amount / self.target_amount) * 100
+
 
 class DebtTracker(models.Model):
     name = models.CharField(max_length=100)

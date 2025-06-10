@@ -4,14 +4,15 @@ import * as Yup from 'yup';
 import { useDropzone } from 'react-dropzone';
 import DatePicker from 'react-datepicker';
 import Select from 'react-select';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar, Upload, MapPin, RepeatIcon, Tags, Receipt } from 'lucide-react';
+import { Calendar, Upload, MapPin, RepeatIcon, Tags, User, Receipt } from 'lucide-react';
 import Button from '../ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../ui/Card';
 import toast from 'react-hot-toast';
 
 const TransactionSchema = Yup.object().shape({
-  amount: Yup.number() 
+  amount: Yup.number()
     .required('Le montant est requis')
     .min(0.01, 'Le montant doit être supérieur à 0'),
   description: Yup.string()
@@ -127,93 +128,91 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               <CardTitle>Informations principales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="overflow-y-auto max-h-[400px]">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="amount" className="label">Montant</label>
-                    <Field
-                      type="number"
-                      id="amount"
-                      name="amount"
-                      className="input"
-                      step="0.01"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="amount" className="label">Montant</label>
+                  <Field
+                    type="number"
+                    id="amount"
+                    name="amount"
+                    className="input"
+                    step="0.01"
+                  />
+                  {errors.amount && touched.amount && (
+                    <p className="text-sm text-error mt-1">{errors.amount}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="type" className="label">Type</label>
+                  <Field
+                    as="select"
+                    id="type"
+                    name="type"
+                    className="input"
+                  >
+                    <option value="expense">Dépense</option>
+                    <option value="income">Revenu</option>
+                  </Field>
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="label">Description</label>
+                  <Field
+                    type="text"
+                    id="description"
+                    name="description"
+                    className="input"
+                  />
+                  {errors.description && touched.description && (
+                    <p className="text-sm text-error mt-1">{errors.description}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="date" className="label">Date</label>
+                  <div className="relative">
+                    <DatePicker
+                      selected={values.date}
+                      onChange={(date) => setFieldValue('date', date)}
+                      dateFormat="dd/MM/yyyy"
+                      locale={fr}
+                      className="input w-full"
                     />
-                    {typeof errors.amount === 'string' && touched.amount && (
-                      <p className="text-sm text-error mt-1">{errors.amount}</p>
-                    )}
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted h-4 w-4" />
                   </div>
+                </div>
 
-                  <div>
-                    <label htmlFor="type" className="label">Type</label>
-                    <Field
-                      as="select"
-                      id="type"
-                      name="type"
-                      className="input"
-                    >
-                      <option value="expense">Dépense</option>
-                      <option value="income">Revenu</option>
-                    </Field>
-                  </div>
+                <div>
+                  <label htmlFor="category" className="label">Catégorie</label>
+                  <Select
+                    id="category"
+                    name="category"
+                    options={categories}
+                    value={categories.find(cat => cat.value === values.category)}
+                    onChange={(option) => setFieldValue('category', option?.value)}
+                    className="react-select"
+                    classNamePrefix="react-select"
+                  />
+                  {errors.category && touched.category && (
+                    <p className="text-sm text-error mt-1">{errors.category}</p>
+                  )}
+                </div>
 
-                  <div>
-                    <label htmlFor="description" className="label">Description</label>
-                    <Field
-                      type="text"
-                      id="description"
-                      name="description"
-                      className="input"
-                    />
-                    {typeof errors.description === 'string' && touched.description && (
-                      <p className="text-sm text-error mt-1">{errors.description}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="date" className="label">Date</label>
-                    <div className="relative">
-                      <DatePicker
-                        selected={values.date}
-                        onChange={(date) => setFieldValue('date', date)}
-                        dateFormat="dd/MM/yyyy"
-                        locale={fr}
-                        className="input w-full"
-                      />
-                      <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted h-4 w-4" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="category" className="label">Catégorie</label>
-                    <Select
-                      id="category"
-                      name="category"
-                      options={categories}
-                      value={categories.find(cat => cat.value === values.category)}
-                      onChange={(option) => setFieldValue('category', option?.value)}
-                      className="react-select"
-                      classNamePrefix="react-select"
-                    />
-                    {typeof errors.category === 'string' && touched.category && (
-                      <p className="text-sm text-error mt-1">{errors.category}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="account" className="label">Compte</label>
-                    <Select
-                      id="account"
-                      name="account"
-                      options={accounts}
-                      value={accounts.find(acc => acc.value === values.account)}
-                      onChange={(option) => setFieldValue('account', option?.value)}
-                      className="react-select"
-                      classNamePrefix="react-select"
-                    />
-                    {typeof errors.account === 'string' && touched.account && (
-                      <p className="text-sm text-error mt-1">{errors.account}</p>
-                    )}
-                  </div>
+                <div>
+                  <label htmlFor="account" className="label">Compte</label>
+                  <Select
+                    id="account"
+                    name="account"
+                    options={accounts}
+                    value={accounts.find(acc => acc.value === values.account)}
+                    onChange={(option) => setFieldValue('account', option?.value)}
+                    className="react-select"
+                    classNamePrefix="react-select"
+                  />
+                  {errors.account && touched.account && (
+                    <p className="text-sm text-error mt-1">{errors.account}</p>
+                  )}
                 </div>
               </div>
             </CardContent>

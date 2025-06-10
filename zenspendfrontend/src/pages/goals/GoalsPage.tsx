@@ -5,7 +5,6 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import SavingsGoalCard from '../../components/dashboard/SavingsGoalCard';
 import { savingsGoals } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
-import { useNavigate } from 'react-router-dom';
 
 const GoalsPage: React.FC = () => {
   // Calculate total savings progress
@@ -15,7 +14,6 @@ const GoalsPage: React.FC = () => {
   
   // Calculate average monthly savings needed
   const monthlyTargetSavings = totalRemaining / 12;
-  const navigate = useNavigate();
 
   return (
     <div className="py-8">
@@ -25,7 +23,7 @@ const GoalsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Objectifs d'épargne</h1>
             <p className="text-muted">Suivez et atteignez vos objectifs financiers</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/goals/new')}>
+          <Button leftIcon={<Plus size={16} />}>
             Nouvel objectif
           </Button>
         </div>
