@@ -27,7 +27,7 @@ class User(AbstractBaseUser):
     last_name = models.CharField(max_length=50)
     profile_pic = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True) 
     is_admin = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
     preferred_currency = models.CharField(max_length=3, default='EUR')

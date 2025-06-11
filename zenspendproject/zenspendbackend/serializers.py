@@ -112,7 +112,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             }
         }
 
-        return data
+        return data 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

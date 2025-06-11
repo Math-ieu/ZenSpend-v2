@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Signup: React.FC = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState(''); 
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [preferredCurrency, setPreferredCurrency] = useState('EUR');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +48,18 @@ const Signup: React.FC = () => {
     setIsLoading(true);
     
     try {
-      await signup(name, email, password);
+      // Adapter les données pour correspondre au serializer Django
+      const userData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone_number: phoneNumber,
+        preferred_currency: preferredCurrency,
+        password: password,
+        password_confirm: confirmPassword
+      };
+      
+      await signup(userData);
       toast.success('Compte créé avec succès !');
       navigate('/dashboard');
     } catch (error: any) {
@@ -78,23 +92,45 @@ const Signup: React.FC = () => {
         <div className="bg-surface py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="name" className="label">
-                Nom complet
+              <label htmlFor="lastName" className="label">
+                Nom
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-muted" />
                 </div>
                 <input
-                  id="name"
-                  name="name"
+                  id="lastName"
+                  name="lastName"
                   type="text"
-                  autoComplete="name"
+                  autoComplete="family-name"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   className="input pl-10"
-                  placeholder="Sophie Martin"
+                  placeholder="MARTIN"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="firstName" className="label">
+                Prénom
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-muted" />
+                </div>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  autoComplete="given-name"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="input pl-10"
+                  placeholder="Sophie"
                 />
               </div>
             </div>
@@ -118,6 +154,50 @@ const Signup: React.FC = () => {
                   className="input pl-10"
                   placeholder="votre@email.com"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="phoneNumber" className="label">
+                Numéro de téléphone
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-muted" />
+                </div>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  autoComplete="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="input pl-10"
+                  placeholder="+33 6 12 34 56 78"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="preferredCurrency" className="label">
+                Devise préférée
+              </label>
+              <div className="mt-1">
+                <select
+                  id="preferredCurrency"
+                  name="preferredCurrency"
+                  value={preferredCurrency}
+                  onChange={(e) => setPreferredCurrency(e.target.value)}
+                  className="input"
+                  required
+                >
+                  <option value="EUR">Euro (EUR)</option>
+                  <option value="USD">Dollar américain (USD)</option>
+                  <option value="GBP">Livre sterling (GBP)</option>
+                  <option value="CAD">Dollar canadien (CAD)</option>
+                  <option value="CHF">Franc suisse (CHF)</option>
+                  <option value="JPY">Yen japonais (JPY)</option>
+                </select>
               </div>
             </div>
 

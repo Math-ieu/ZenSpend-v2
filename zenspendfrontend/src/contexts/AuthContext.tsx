@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
 
+
+
 // API Configuration
 const API_BASE_URL = 'http://localhost:8000/api';
 
@@ -10,7 +12,16 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (userData: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number: string;
+  preferred_currency: string;
+  password: string;
+  password_confirm: string;
+}) => Promise<void>;
+
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
   
@@ -49,7 +60,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const mockData = {
   user: {
     id: '1',
-    name: 'Sophie Martin',
+    first_name: 'Sophie',
+    last_name: 'MARTIN',
     email: 'sophie.martin@example.com',
     avatar: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=100',
   },
@@ -168,55 +180,127 @@ const mockData = {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!token && !!user;
 
+  // Check if user ID is 1 and return mock data
+  const shouldUseMockData = () => user?.id === '1';
+
+  // Clear all auth data
+  const clearAuthData = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+  };
+
   // API Helper function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
-    const headers = {
+    
+    // Prepare headers
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
+      
+      ...options.headers as Record<string, string>,
     };
 
+    // Add auth header if token exists and it's not a login/register request
+    if (token && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const requestOptions: RequestInit = {
+      ...options,
+      headers,
+    };
+
+    console.log('API Call:', {
+      url,
+      method: requestOptions.method || 'GET',
+      headers,
+      body: requestOptions.body,
+    });
+
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
+      const response = await fetch(url, requestOptions);
+
+      console.log('API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
       });
 
+      // Handle different response statuses
       if (response.status === 401) {
-        // Token expired, logout user
-        await logout();
-        throw new Error('Session expired');
+        console.warn('Unauthorized - clearing auth data');
+        clearAuthData();
+        throw new Error('Session expirée, veuillez vous reconnecter');
+      }
+
+      if (response.status === 403) {
+        throw new Error('Accès refusé');
+      }
+
+      if (response.status === 404) {
+        throw new Error('Ressource non trouvée');
+      }
+
+      if (response.status >= 500) {
+        throw new Error('Erreur serveur, veuillez réessayer plus tard');
+      }
+
+      // Try to parse JSON response
+      let responseData;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        // Handle error responses
+        const errorMessage = responseData?.message || 
+                           responseData?.detail || 
+                           responseData?.error || 
+                           `Erreur HTTP: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
-      return await response.json();
+      console.log('API Response Data:', responseData);
+      return responseData;
+
     } catch (error) {
-      console.error('API call failed:', error);
+      console.error('API call failed:', {
+        endpoint,
+        error: error instanceof Error ? error.message : error,
+      });
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Impossible de se connecter au serveur. Vérifiez votre connexion.');
+      }
+      
       throw error;
     }
   };
-
-  // Check if user ID is 1 and return mock data
-  const shouldUseMockData = () => user?.id === '1';
 
   // Authentication methods
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log('Attempting login for:', email);
+
       // For demo purposes, if email contains sophie, use mock data
-      if (email.includes('sophie')) {
+      if (email.toLowerCase().includes('sophie')) {
+        console.log('Using mock data for Sophie');
         const mockToken = 'mock-jwt-token-for-user-1';
         const mockRefreshToken = 'mock-refresh-token-for-user-1';
+        
         setToken(mockToken);
         setUser(mockData.user);
         localStorage.setItem('token', mockToken);
@@ -225,42 +309,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
+      // Real API call
       const response = await apiCall('/auth/login/', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
 
+
+      if (!response.access || !response.user) {
+        throw new Error('Réponse de connexion invalide');
+      }
+
       setToken(response.access);
       setUser(response.user);
       localStorage.setItem('token', response.access);
-      localStorage.setItem('refresh_token', response.refresh);
+      
+      if (response.refresh) {
+        localStorage.setItem('refresh_token', response.refresh);
+      }
+      
       localStorage.setItem('user', JSON.stringify(response.user));
+
+     
+
     } catch (error) {
+      console.error('Login failed:', error);
+      clearAuthData();
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signup = async (name: string, email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const response = await apiCall('/auth/register/', {
-        method: 'POST',
-        body: JSON.stringify({ name, email, password }),
-      });
+    const signup = async (userData: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      phone_number: string;
+      preferred_currency: string;
+      password: string;
+      password_confirm: string;
+    }) => {
+      setIsLoading(true);
+      try {
+        console.log('Attempting signup for:', userData.email);
 
-      setToken(response.access);
-      setUser(response.user);
-      localStorage.setItem('token', response.access);
-      localStorage.setItem('refresh_token', response.refresh);
-      localStorage.setItem('user', JSON.stringify(response.user));
-    } catch (error) {
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const response = await apiCall('/auth/register/', {
+          method: 'POST',
+          body: JSON.stringify(userData),
+        });
+
+        if (!response.access || !response.user) {
+          throw new Error('Réponse d\'inscription invalide');
+        }
+
+      } catch (error) {
+        console.error('Signup failed:', error);
+        clearAuthData();
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
   const logout = async () => {
     const refreshToken = localStorage.getItem('refresh_token');
@@ -273,17 +383,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
       } catch (error) {
-        // Even if the logout API call fails, we still want to clear local storage
         console.error('Logout API call failed:', error);
+        // Continue with local cleanup even if API call fails
       }
     }
 
-    // Clear all local state and storage
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    clearAuthData();
+    console.log('User logged out');
   };
 
   const refreshToken = async () => {
@@ -294,14 +400,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
+      console.log('Refreshing token...');
+      
       const response = await apiCall('/auth/refresh/', {
         method: 'POST',
         body: JSON.stringify({ refresh }),
       });
 
+      if (!response.access) {
+        throw new Error('Invalid refresh response');
+      }
+
       setToken(response.access);
       localStorage.setItem('token', response.access);
+      console.log('Token refreshed successfully');
+
     } catch (error) {
+      console.error('Token refresh failed:', error);
       await logout();
       throw error;
     }
@@ -511,18 +626,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Initialize auth state
   useEffect(() => {
     const initAuth = async () => {
+      console.log('Initializing auth...');
+      
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
       if (storedToken && storedUser) {
         try {
+          const parsedUser = JSON.parse(storedUser);
+          console.log('Found stored auth data for user:', parsedUser);
+          
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          setUser(parsedUser);
         } catch (error) {
-          console.error('Error parsing stored user:', error);
-          await logout();
+          console.error('Error parsing stored user data:', error);
+          clearAuthData();
         }
+      } else {
+        console.log('No stored auth data found');
       }
+      
       setIsLoading(false);
     };
 
