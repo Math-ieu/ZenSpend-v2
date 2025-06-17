@@ -35,6 +35,49 @@ class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = UserRegistrationSerializer
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        
+        if serializer.is_valid():
+            try:
+                user = serializer.save()
+                return Response({
+                    'status': 'success',
+                    'status_code': 201,
+                    'message': 'Utilisateur créé avec succès',
+                    'data': {
+                        'user': {
+                            'id': user.id,
+                            'email': user.email,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                            'phone_number': user.phone_number,
+                            'preferred_currency': user.preferred_currency,
+                        }
+                    }
+                }, 
+                status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                return Response({
+                    'status': 'error',
+                    'status_code': 500,
+                    'message': 'Erreur lors de la création de l\'utilisateur',
+                    'error': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # Formater les erreurs de validation
+            formatted_errors = {}
+            for field, errors in serializer.errors.items():
+                formatted_errors[field] = errors if isinstance(errors, list) else [str(errors)]
+            
+            return Response({
+                'status': 'error',
+                'status_code': 400,
+                'message': 'Données invalides',
+                'errors': formatted_errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 

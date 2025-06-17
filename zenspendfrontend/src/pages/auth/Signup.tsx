@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link} from 'react-router-dom';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,7 +17,7 @@ const Signup: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const { signup } = useAuth();
-  const navigate = useNavigate();
+  
   
   const validatePassword = (password: string) => {
     const minLength = password.length >= 8;
@@ -47,7 +47,7 @@ const Signup: React.FC = () => {
     
     setIsLoading(true);
     
-    try {
+    
       // Adapter les données pour correspondre au serializer Django
       const userData = {
         first_name: firstName,
@@ -60,13 +60,8 @@ const Signup: React.FC = () => {
       };
       
       await signup(userData);
-      toast.success('Compte créé avec succès !');
-      navigate('/dashboard');
-    } catch (error: any) {
-      toast.error(error.message || "Une erreur s'est produite lors de l'inscription. Veuillez réessayer.");
-    } finally {
-      setIsLoading(false);
-    }
+     
+    
   };
   
   return (

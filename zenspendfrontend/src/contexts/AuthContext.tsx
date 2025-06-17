@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
+import { toast } from 'react-toastify';
 
 
 
@@ -341,38 +342,77 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-    const signup = async (userData: {
-      first_name: string;
-      last_name: string;
-      email: string;
-      phone_number: string;
-      preferred_currency: string;
-      password: string;
-      password_confirm: string;
-    }) => {
-      setIsLoading(true);
-      try {
-        console.log('Attempting signup for:', userData.email);
+const signup = async (userData: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number: string;
+  preferred_currency: string;
+  password: string;
+  password_confirm: string;
+}) => {
+  setIsLoading(true);
+  
+  try {
+    console.log('Attempting signup for:', userData.email);
 
-        const response = await apiCall('/auth/register/', {
-          method: 'POST',
-          body: JSON.stringify(userData),
-        });
+    // Appel API avec gestion des status intégrée
+    const url = `${API_BASE_URL}/auth/register/`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
 
-        if (!response.access || !response.user) {
-          throw new Error('Réponse d\'inscription invalide');
-        }
+    const responseData = await response.json();
 
-      } catch (error) {
-        console.error('Signup failed:', error);
-        clearAuthData();
-        throw error;
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Gestion basée sur les status codes
+    if (responseData.status_code === 201) {
+      // Succès - Inscription réussie
+      toast.success('Inscription réussie ! Bienvenue !', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      return responseData;
 
-  const logout = async () => {
+    } else {
+     // Erreur
+          toast.error(responseData.message);
+          throw new Error(responseData.message);
+    } 
+
+  } catch (error) {
+    console.error('Signup failed:', error);
+    
+    // Si l'erreur n'a pas déjà généré un toast (erreur réseau par exemple)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      toast.error('Impossible de se connecter au serveur. Vérifiez votre connexion.', {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+    
+    clearAuthData();
+    throw error;
+    
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
+    const logout = async () => {
     const refreshToken = localStorage.getItem('refresh_token');
     
     // If we have a refresh token and we're not using mock data, call the logout endpoint
