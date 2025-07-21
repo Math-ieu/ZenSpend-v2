@@ -5,8 +5,8 @@ from .models import (
     DebtTracker, SharedBudget, DebtRecord, Notification, 
     FinancialSnapshot, ImportSession, Achievement, Challenge, 
     FinancialReport, ChatSession, ChatMessage, UserPreference, 
-    FinancialInsight
-)
+    FinancialInsight, Subscription
+) 
 
 admin.site.register(User)
 admin.site.register(BankAccount)
@@ -31,3 +31,4 @@ admin.site.register(ChatSession)
 admin.site.register(ChatMessage)
 admin.site.register(UserPreference)
 admin.site.register(FinancialInsight)
+admin.site.register(Subscription)

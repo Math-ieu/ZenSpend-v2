@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown, Home, PieChart, Wallet, Banknote, Target, Settings, LogOut } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import Logo from '../ui/logo'; 
 
 interface NavItemProps {
   to: string;
@@ -36,6 +39,7 @@ const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
+  const { currentPlan } = useSubscription();
 
   const closeMenu = () => setIsMenuOpen(false);
   
@@ -60,6 +64,7 @@ const Header: React.FC = () => {
     { to: '/budgets', icon: <PieChart size={18} />, label: 'Budgets' },
     { to: '/accounts', icon: <Wallet size={18} />, label: 'Accounts' },
     { to: '/goals', icon: <Target size={18} />, label: 'Savings Goals' },
+    { to: '/subscription', icon: <Crown size={18} />, label: 'Subscription' },
   ];
   
   // Landing page navigation items
@@ -94,8 +99,8 @@ const Header: React.FC = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-           
-            <span className="text-xl font-bold text-foreground">ZenSpend</span>
+            <Logo />
+            
           </Link>
 
           {/* Desktop Navigation */}
@@ -131,6 +136,14 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             <ThemeToggle />
             
+            {/* Subscription Badge */}
+            {isAuthenticated && currentPlan && currentPlan.id !== 'free' && (
+              <div className="hidden md:flex items-center px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                <Crown className="h-3 w-3 mr-1" />
+                {currentPlan.name}
+              </div>
+            )}
+            
             {isAuthenticated ? (
               <div className="relative">
                 <button
@@ -139,11 +152,11 @@ const Header: React.FC = () => {
                 >
                   <Avatar 
                     src={user?.avatar} 
-                    name={user?.name || 'User'} 
+                    name={user?.first_name || 'User'} 
                     size="sm" 
                   />
                   <span className="hidden md:inline-block text-sm font-medium text-foreground">
-                    {user?.name}
+                    {user?.first_name || 'User'}
                   </span>
                   <ChevronDown size={16} className="text-muted" />
                 </button>

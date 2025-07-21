@@ -95,8 +95,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'zenspend_db',
-        'USER': 'postgres',
-        'PASSWORD': 'password',
+        'USER': 'mathieu',
+        'PASSWORD': 'pass',
         'HOST': '127.0.0.1',
         'PORT': '5432',
     }

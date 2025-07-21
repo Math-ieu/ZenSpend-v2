@@ -2,8 +2,6 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.gis.db import models
 from django.utils import timezone
 
-
-
 # zenspendproject/zenspendbackend/models.py
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -541,3 +539,16 @@ class FinancialInsight(models.Model):
 
     def __str__(self):
         return self.title
+    
+
+
+
+# Subscription model
+class Subscription(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    plan_id = models.CharField(max_length=50)
+    status = models.CharField(max_length=20)
+    current_period_start = models.DateTimeField()
+    current_period_end = models.DateTimeField()
+    cancel_at_period_end = models.BooleanField(default=False)
+    stripe_subscription_id = models.CharField(max_length=100, null=True)

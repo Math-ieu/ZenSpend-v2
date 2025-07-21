@@ -8,12 +8,16 @@ import SavingsGoalCard from '../components/dashboard/SavingsGoalCard';
 import TransactionsList from '../components/dashboard/TransactionsList';
 import ExpenseChart from '../components/dashboard/ExpenseChart';
 import CategoryChart from '../components/dashboard/CategoryChart';
+import FeatureGate from '../components/subscription/FeatureGate';
+import UsageLimits from '../components/subscription/UsageLimits';
 import { formatCurrency } from '../lib/utils';
 import { accounts, budgets, monthlyExpenses, savingsGoals, transactions } from '../lib/mockData';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { featureAccess } = useSubscription();
   
   // Calculate total balance across all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
@@ -100,10 +104,12 @@ const Dashboard: React.FC = () => {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Aperçu financier</CardTitle>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full">Par mois</button>
-                    <button className="px-3 py-1 text-xs text-muted hover:bg-surface rounded-full">Par année</button>
-                  </div>
+                  <FeatureGate feature="canAccessAdvancedReports" showUpgrade={false}>
+                    <div className="flex space-x-2">
+                      <button className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full">Par mois</button>
+                      <button className="px-3 py-1 text-xs text-muted hover:bg-surface rounded-full">Par année</button>
+                    </div>
+                  </FeatureGate>
                 </div>
               </CardHeader>
               <CardContent>
@@ -160,6 +166,11 @@ const Dashboard: React.FC = () => {
           
           {/* Right Column */}
           <div className="space-y-6">
+            {/* Usage Limits */}
+            <UsageLimits type="accounts" currentCount={accounts.length} label="Comptes" />
+            <UsageLimits type="budgets" currentCount={budgets.length} label="Budgets" />
+            <UsageLimits type="goals" currentCount={savingsGoals.length} label="Objectifs" />
+            
             {/* Recent Transactions */}
             <Card>
               <CardHeader>
