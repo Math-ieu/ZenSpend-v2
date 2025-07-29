@@ -16,7 +16,7 @@ const BudgetSchema = Yup.object().shape({
     .required('Le nom est requis')
     .min(3, 'Le nom doit contenir au moins 3 caractères'),
   amount: Yup.number()
-    .required('Le montant est requis')
+    .required('Le montant est requis') 
     .min(0, 'Le montant doit être positif'),
   startDate: Yup.date()
     .required('La date de début est requise'),

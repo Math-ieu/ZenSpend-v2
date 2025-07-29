@@ -15,6 +15,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
@@ -95,4 +96,6 @@ class UserLogoutView(APIView):
                 return Response({'error': 'Token de rafraîchissement requis'}, 
                               status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': 'Token invalide'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Token invalide'}, status=status.HTTP_400_BAD_REQUEST) 
+
+

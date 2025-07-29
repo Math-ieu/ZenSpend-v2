@@ -401,4 +401,4 @@ class FinancialInsightSerializer(serializers.ModelSerializer):
         model = FinancialInsight
         fields = ['id', 'user', 'title', 'description', 'created_at', 'insight_type',
                   'priority', 'viewed', 'related_data']
-        read_only_fields = ['id', 'created_at'] 
+        read_only_fields = ['id', 'created_at']  

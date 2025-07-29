@@ -22,7 +22,7 @@ const TransactionsPage: React.FC = () => {
     
     return matchesSearch && matchesCategory && matchesType;
   });
-
+ 
   return (
     <div className="py-8">
       <div className="container mx-auto px-4 md:px-6">

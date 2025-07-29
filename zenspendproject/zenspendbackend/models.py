@@ -195,8 +195,6 @@ class TransactionRule(models.Model):
     def __str__(self):
         return self.name
 
-
-
 class Budget(models.Model):
     name = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
@@ -473,6 +471,7 @@ class ChatSession(models.Model):
 
     def __str__(self):
         return f"Session {self.id} - {self.user.email}"
+    
 
 class ChatMessage(models.Model):
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE)
@@ -542,7 +541,7 @@ class FinancialInsight(models.Model):
     
 
 
-
+ 
 # Subscription model
 class Subscription(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -551,4 +550,4 @@ class Subscription(models.Model):
     current_period_start = models.DateTimeField()
     current_period_end = models.DateTimeField()
     cancel_at_period_end = models.BooleanField(default=False)
-    stripe_subscription_id = models.CharField(max_length=100, null=True)
+    stripe_subscription_id = models.CharField(max_length=100, null=True) 

@@ -3,7 +3,8 @@ import { generateRandomAmount } from './utils';
 
 export const currentUser: User = {
   id: 'user-1',
-  name: 'Sophie Martin',
+  first_name: 'Sophie',
+  last_name : 'Martin',
   email: 'sophie.martin@example.com',
   avatar: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=100',
 };
@@ -14,7 +15,7 @@ export const accounts: Account[] = [
     name: 'Compte Courant',
     balance: 2580.42,
     type: 'checking',
-    currency: 'EUR',
+    currency: 'EUR', 
   },
   {
     id: 'account-2',

@@ -6,10 +6,12 @@ import AccountCard, { AddAccountCard } from '../../components/dashboard/AccountC
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
 import { accounts, monthlyExpenses, transactions } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 const AccountsPage: React.FC = () => {
   // Calculate total balance across all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
+  const navigate = useNavigate();
   
   // Get recent transactions
   const recentTransactions = transactions.slice(0, 5);
@@ -22,7 +24,7 @@ const AccountsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Comptes</h1>
             <p className="text-muted">Gérez vos comptes bancaires</p>
           </div>
-          <Button leftIcon={<Plus size={16} />}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/accounts/new')}>
             Ajouter un compte
           </Button>
         </div>
