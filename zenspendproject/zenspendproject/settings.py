@@ -12,7 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
+import os
 
+# Charger les variables depuis backend.env
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / '.env')
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,13 +27,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-fw)6!dido$a%_36s%#dmy2w%z4s!dxs7&^1$())&#i@u9j6#_$'
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
-
 
 # Application definition
 
@@ -95,14 +98,15 @@ DATABASES = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'zenspend_db',
-        'USER': 'mathieu',
-        'PASSWORD': 'pass',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DATABASE_NAME'),
+        'USER': os.environ.get('DATABASE_USER'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD'),
+        'HOST': os.environ.get('DATABASE_HOST'),
+        'PORT': os.environ.get('DATABASE_PORT', '5432'),
     }
 }
+
 
 
 # Password validation
@@ -260,3 +264,4 @@ LOGGING = {
         },
     },
 }
+

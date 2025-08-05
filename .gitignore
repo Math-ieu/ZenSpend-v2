@@ -10,6 +10,8 @@
 .snapshots/
 #Test folder
 
+backend.env
+.env
 #Testing Output folder
 .output/
 #Extension App-file
