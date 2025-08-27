@@ -1,0 +1,565 @@
+# Requêtes HTTP POST - Données fictives ZenSpend
+
+## 1. Création des utilisateurs
+
+### Utilisateur 1 - Marie Dupont
+```http
+POST /api/auth/register/
+Content-Type: application/json
+
+{
+  "email": "marie.dupont@email.com",
+  "first_name": "Marie",
+  "last_name": "Dupont",
+  "phone_number": "+33123456789",
+  "preferred_currency": "EUR",
+  "password": "MotDePasse123!",
+  "password_confirm": "MotDePasse123!"
+}
+```
+
+### Utilisateur 2 - Pierre Martin
+```http
+POST /api/auth/register/
+Content-Type: application/json
+
+{
+  "email": "pierre.martin@email.com",
+  "first_name": "Pierre",
+  "last_name": "Martin",
+  "phone_number": "+33987654321",
+  "preferred_currency": "EUR",
+  "password": "MotDePasse123!",
+  "password_confirm": "MotDePasse123!"
+}
+```
+
+## 2. Connexion des utilisateurs (pour récupérer les tokens)
+
+### Connexion Marie
+```http
+POST /api/auth/login/
+Content-Type: application/json
+
+{
+  "email": "marie.dupont@email.com",
+  "password": "MotDePasse123!"
+}
+```
+
+### Connexion Pierre
+```http
+POST /api/auth/login/
+Content-Type: application/json
+
+{
+  "email": "pierre.martin@email.com",
+  "password": "MotDePasse123!"
+}
+```
+
+---
+
+## 3. Données pour Marie Dupont (ID: 1)
+
+### Comptes bancaires
+```http
+POST /api/accounts/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Compte Courant BNP",
+  "account_number": "FR76 3000 6000 0112 3456 7890 189",
+  "balance": 2500.50,
+  "currency": "EUR",
+  "account_type": "checking",
+  "institution": "BNP Paribas",
+  "is_active": true
+}
+```
+
+```http
+POST /api/accounts/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Livret A",
+  "account_number": "FR76 3000 6000 0112 3456 7890 190",
+  "balance": 15000.00,
+  "currency": "EUR",
+  "account_type": "savings",
+  "institution": "BNP Paribas",
+  "is_active": true
+}
+```
+
+### Catégories personnalisées
+```http
+POST /api/categories/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Courses alimentaires",
+  
+  "color": "#4CAF50",
+  "is_expense": true,
+  "is_tax_deductible": false,
+  "parent_category": null
+}
+```
+
+```http
+POST /api/categories/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Frais professionnels",
+  
+  "color": "#2196F3",
+  "is_expense": true,
+  "is_tax_deductible": true,
+  "parent_category": null
+}
+```
+
+```http
+POST /api/categories/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Salaire",
+ 
+  "color": "#8BC34A",
+  "is_expense": false,
+  "is_tax_deductible": false,
+  "parent_category": null
+}
+```
+
+### Tags
+```http
+POST /api/tags/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Urgent",
+  "color": "#F44336"
+}
+```
+
+```http
+POST /api/tags/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Bio",
+  "color": "#4CAF50"
+}
+```
+
+```http
+POST /api/tags/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Récurrent",
+  "color": "#FF9800"
+}
+```
+
+### Transactions
+```http
+POST /api/transactions/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "amount": 3200.00,
+  "description": "Salaire mensuel",
+  "date": "2024-08-01",
+  "category": 3,
+  "account": 1,
+  "payee": "Entreprise ABC",
+  "status": "completed",
+  "tags": [3]
+}
+```
+
+```http
+POST /api/transactions/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "amount": -85.50,
+  "description": "Courses Carrefour",
+  "date": "2024-08-05",
+  "category": 1,
+  "account": 1,
+  "payee": "Carrefour",
+  "location": "Carrefour City Paris",
+  "status": "completed",
+  "tags": [2, 3]
+}
+```
+
+```http
+POST /api/transactions/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "amount": -45.00,
+  "description": "Déjeuner client",
+  "date": "2024-08-06",
+  "category": 2,
+  "account": 1,
+  "payee": "Restaurant Le Bistrot",
+  "status": "completed",
+  "notes": "Repas avec client important"
+}
+```
+
+```http
+POST /api/transactions/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "amount": -1200.00,
+  "description": "Loyer appartement",
+  "date": "2024-08-01",
+  "account": 1,
+  "payee": "Propriétaire Dupuis",
+  "status": "completed",
+  "tags": [3]
+}
+```
+
+### Budget
+```http
+POST /api/budgets/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Budget Courses Août",
+  "amount": 400.00,
+  "start_date": "2024-08-01",
+  "end_date": "2024-08-31",
+  "categories": [1],
+  "accounts": [1],
+  "alert_threshold": 80.0,
+  "is_recurring": false
+}
+```
+
+### Objectif d'épargne
+```http
+POST /api/savings-goals/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Vacances d'été 2025",
+  "target_amount": 3000.00,
+  "current_amount": 500.00,
+  "deadline": "2025-06-01",
+  
+  "account": 2,
+  "auto_save": true,
+  "auto_save_amount": 200.00,
+  "auto_save_frequency": "monthly",
+  "notes": "Voyage en Grèce prévu"
+}
+```
+
+### Règle de transaction
+```http
+POST /api/transaction-rules/
+Authorization: Bearer {marie_access_token}
+Content-Type: application/json
+
+{
+  "name": "Auto-catégoriser Carrefour",
+  "keywords": "carrefour,courses",
+  "assign_category": 1,
+  "assign_tags": [2],
+  "is_active": true
+}
+```
+
+---
+
+## 4. Données pour Pierre Martin (ID: 2)
+
+### Comptes bancaires
+```http
+POST /api/accounts/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Compte Principal Crédit Agricole",
+  "account_number": "FR14 2004 1010 0505 0001 3M02 606",
+  "balance": 1850.75,
+  "currency": "EUR",
+  "account_type": "checking",
+  "institution": "Crédit Agricole",
+  "is_active": true
+}
+```
+
+```http
+POST /api/accounts/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "PEL",
+  "account_number": "FR14 2004 1010 0505 0001 3M02 607",
+  "balance": 25000.00,
+  "currency": "EUR",
+  "account_type": "savings",
+  "institution": "Crédit Agricole",
+  "is_active": true
+}
+```
+
+### Catégories personnalisées
+```http
+POST /api/categories/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Transport",
+ 
+  "color": "#FF5722",
+  "is_expense": true,
+  "is_tax_deductible": false,
+  "parent_category": null
+}
+```
+
+```http
+POST /api/categories/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Loisirs",
+  
+  "color": "#9C27B0",
+  "is_expense": true,
+  "is_tax_deductible": false,
+  "parent_category": null
+}
+```
+
+```http
+POST /api/categories/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Revenus freelance",
+  
+  "color": "#00BCD4",
+  "is_expense": false,
+  "is_tax_deductible": false,
+  "parent_category": null
+}
+```
+
+### Tags
+```http
+POST /api/tags/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Professionnel",
+  "color": "#3F51B5"
+}
+```
+
+```http
+POST /api/tags/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Weekend",
+  "color": "#E91E63"
+}
+```
+
+### Transactions
+```http
+POST /api/transactions/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "amount": 1500.00,
+  "description": "Mission freelance développement",
+  "date": "2024-08-02",
+  "category": 6,
+  "account": 3,
+  "payee": "StartupTech SAS",
+  "status": "completed",
+  "tags": [4],
+  "notes": "Développement application mobile"
+}
+```
+
+```http
+POST /api/transactions/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "amount": -65.00,
+  "description": "Plein d'essence",
+  "date": "2024-08-03",
+  "category": 4,
+  "account": 3,
+  "payee": "Total Energies",
+  "location": "Station Total A6",
+  "status": "completed"
+}
+```
+
+```http
+POST /api/transactions/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "amount": -25.99,
+  "description": "Abonnement Netflix",
+  "date": "2024-08-05",
+  "category": 5,
+  "account": 3,
+  "payee": "Netflix",
+  "status": "completed",
+  "is_recurring": true,
+  "tags": [5]
+}
+```
+
+```http
+POST /api/transactions/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "amount": -120.00,
+  "description": "Sortie restaurant avec amis",
+  "date": "2024-08-07",
+  "category": 5,
+  "account": 3,
+  "payee": "Restaurant L'Ami Jean",
+  "status": "completed",
+  "tags": [5],
+  "notes": "Anniversaire Thomas"
+}
+```
+
+### Budget
+```http
+POST /api/budgets/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Budget Loisirs Août",
+  "amount": 300.00,
+  "start_date": "2024-08-01",
+  "end_date": "2024-08-31",
+  "categories": [5],
+  "accounts": [3],
+  "alert_threshold": 75.0,
+  "is_recurring": true
+}
+```
+
+### Objectif d'épargne
+```http
+POST /api/savings-goals/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Nouveau MacBook Pro",
+  "target_amount": 2500.00,
+  "current_amount": 800.00,
+  "deadline": "2024-12-15",
+
+  "account": 4,
+  "auto_save": true,
+  "auto_save_amount": 150.00,
+  "auto_save_frequency": "monthly",
+  "notes": "Pour le travail freelance"
+}
+```
+
+### Suivi de dette
+```http
+POST /api/debt-trackers/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Prêt étudiant",
+  "total_amount": 15000.00,
+  "remaining_amount": 8500.00,
+  "interest_rate": 2.5,
+  "minimum_payment": 180.00,
+  "payment_due_date": "2024-08-15",
+  "lender": "Banque Populaire",
+  "account": 3
+}
+```
+
+### Défi
+```http
+POST /api/challenges/
+Authorization: Bearer {pierre_access_token}
+Content-Type: application/json
+
+{
+  "name": "Économiser 500€ en 3 mois",
+  "description": "Réduire les dépenses de loisirs pour économiser",
+  "start_date": "2024-08-01",
+  "end_date": "2024-10-31",
+  "target_value": 500.00,
+  "current_value": 50.00,
+  "challenge_type": "savings",
+  "category": 5,
+  "is_completed": false
+}
+```
+
+---
+
+## Notes importantes :
+
+1. **Remplacez les tokens** : `{marie_access_token}` et `{pierre_access_token}` par les vrais tokens JWT obtenus lors de la connexion.
+
+2. **IDs des relations** : Les IDs dans les relations (category, account, tags) correspondent aux objets créés précédemment. Ajustez-les selon vos besoins.
+
+3. **Ordre d'exécution** : Respectez l'ordre des requêtes car certaines dépendent d'autres (ex: les transactions ont besoin des comptes et catégories).
+
+4. **URL de base** : Adaptez l'URL de base selon votre configuration (ex: `http://localhost:8000/api/`).
+
+5. **Dates** : Les dates sont au format YYYY-MM-DD. Ajustez-les selon vos besoins.

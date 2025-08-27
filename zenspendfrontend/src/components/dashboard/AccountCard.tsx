@@ -23,7 +23,7 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onClick }) => {
       default:
         return <CreditCard className="h-5 w-5 text-primary" />;
     }
-  };
+  }; 
   
   const getAccountTypeLabel = () => {
     switch (type) {

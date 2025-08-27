@@ -8,6 +8,7 @@ from .models import (
     FinancialInsight, Subscription
 ) 
 
+
 admin.site.register(User)
 admin.site.register(BankAccount)
 admin.site.register(Category)

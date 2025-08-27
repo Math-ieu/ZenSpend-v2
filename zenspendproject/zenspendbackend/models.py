@@ -48,7 +48,7 @@ class User(AbstractBaseUser):
     def has_module_perms(self, app_label):
         return True
 
-    @property
+    @property 
     def is_staff(self):
         return self.is_admin
 
@@ -83,7 +83,7 @@ class BankAccount(models.Model):
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
-    icon = models.CharField(max_length=50, blank=True)
+    
     color = models.CharField(max_length=7, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     is_expense = models.BooleanField(default=True)
@@ -156,7 +156,7 @@ class Transaction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
     is_recurring = models.BooleanField(default=False)
-    location = models.PointField(null=True, blank=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
     payee = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pending'),
@@ -225,7 +225,7 @@ class SavingsGoal(models.Model):
     current_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     deadline = models.DateTimeField(null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    icon = models.CharField(max_length=50, blank=True)
+    
     account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
     auto_save = models.BooleanField(default=False)
     auto_save_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
@@ -384,7 +384,7 @@ class Achievement(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    icon = models.CharField(max_length=50, blank=True)
+    
     date_earned = models.DateTimeField(default=timezone.now)
     achievement_type = models.CharField(max_length=50, choices=[
         ('saving_streak', 'Saving Streak'),
@@ -540,8 +540,6 @@ class FinancialInsight(models.Model):
         return self.title
     
 
-
- 
 # Subscription model
 class Subscription(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -551,3 +549,14 @@ class Subscription(models.Model):
     current_period_end = models.DateTimeField()
     cancel_at_period_end = models.BooleanField(default=False)
     stripe_subscription_id = models.CharField(max_length=100, null=True) 
+    currency = models.CharField(max_length=3, default='EUR')
+    payment_method = models.CharField(max_length=50, null=True, blank=True)
+    is_auto_renew = models.BooleanField(default=True)
+    next_billing_date = models.DateTimeField(null=True, blank=True)
+    amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = 'subscriptions'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.plan_id} ({self.status})"

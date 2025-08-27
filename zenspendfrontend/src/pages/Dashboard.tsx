@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import { Plus, Wallet, Clock, CalendarClock, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
@@ -11,14 +11,68 @@ import CategoryChart from '../components/dashboard/CategoryChart';
 import FeatureGate from '../components/subscription/FeatureGate';
 import UsageLimits from '../components/subscription/UsageLimits';
 import { formatCurrency } from '../lib/utils';
-import { accounts, budgets, monthlyExpenses, savingsGoals, transactions } from '../lib/mockData';
-import { useSubscription } from '../contexts/SubscriptionContext';
+
 import { useNavigate } from 'react-router-dom';
+
+import { useAuth } from '../contexts/AuthContext'
+
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { featureAccess } = useSubscription();
+  const { 
+    user, 
+    fetchAccounts, 
+    fetchBudgets, 
+    fetchMonthlyExpenses, 
+    fetchTransactions,  
+    fetchGoals, 
+  }: {
+    user: any;
+    fetchAccounts: () => Promise<any[]>;
+    fetchBudgets: () => Promise<any[]>; 
+    fetchMonthlyExpenses: () => Promise<any[]>;
+    fetchTransactions: () => Promise<any[]>;
+    fetchGoals: () => Promise<any[]>;
+  } = useAuth();
   
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [budgets, setBudgets] = useState<any[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const fetchedAccounts = await fetchAccounts();
+        const fetchedBudgets = await fetchBudgets();
+        const fetchedMonthlyExpenses = await fetchMonthlyExpenses();
+        const fetchedTransactions = await fetchTransactions();
+        
+        setAccounts(fetchedAccounts);
+        setBudgets(fetchedBudgets);
+        setMonthlyExpenses(fetchedMonthlyExpenses);
+        setTransactions(fetchedTransactions);
+        
+        // Assuming savings goals are part of the user data
+        console.log(fetchedAccounts, fetchedBudgets, fetchedMonthlyExpenses, fetchedTransactions);
+        const fetchedGoals = await fetchGoals();
+        setSavingsGoals(fetchedGoals);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+
+    // Appeler fetchData seulement si l'utilisateur est connecté
+    if (user) {
+      fetchData();
+    }
+  }, [user, fetchAccounts, fetchBudgets, fetchMonthlyExpenses, fetchTransactions, fetchGoals]); // Tableau de dépendances ajouté
+  
+  if (!user) {
+    return <div className="text-center py-8">Veuillez vous connecter pour accéder à votre tableau de bord.</div>;
+  }
+
   // Calculate total balance across all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
   
@@ -28,7 +82,7 @@ const Dashboard: React.FC = () => {
     .reduce((sum, tx) => sum + tx.amount, 0);
     
   const currentMonthExpenses = transactions
-    .filter(tx => tx.type === 'expense')
+    .filter(tx => tx.type === 'expense') 
     .reduce((sum, tx) => sum + tx.amount, 0);
   
   return (
@@ -260,4 +314,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

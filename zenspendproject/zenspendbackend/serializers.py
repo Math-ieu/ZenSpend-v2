@@ -3,12 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 import logging
 
-from .models import (
-    User, BankAccount, Category, Tag, Receipt, RecurringSchedule, Transaction,
-    TransactionRule, Budget, SavingsGoal, DebtTracker, SharedBudget, DebtRecord,
-    Notification, FinancialSnapshot, ImportSession, Achievement, Challenge,
-    FinancialReport, ChatSession, ChatMessage, UserPreference, FinancialInsight
-)
+from .models import *
 
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -103,7 +98,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             'access': str(refresh.access_token),
             'user': {
                 'email': user.email,
-                'fist_name': user.first_name,
+                'first_name': user.first_name,
                 'last_name': user.last_name,
                 'phone_number': user.phone_number,
                 'preferred_currency': user.preferred_currency,
@@ -137,7 +132,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'icon', 'color', 'user', 'is_expense',
+        fields = ['id', 'name',  'color', 'user', 'is_expense',
                   'is_tax_deductible', 'parent_category', 'is_system']
         read_only_fields = ['id', 'is_system']
 
@@ -273,7 +268,7 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavingsGoal
         fields = ['id', 'name', 'target_amount', 'current_amount', 'deadline',
-                  'user', 'icon', 'account', 'auto_save', 'auto_save_amount',
+                  'user', 'account', 'auto_save', 'auto_save_amount',
                   'auto_save_frequency', 'notes', 'percentage_complete']
         read_only_fields = ['id', 'current_amount', 'percentage_complete']
 
@@ -343,7 +338,7 @@ class AchievementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Achievement
-        fields = ['id', 'user', 'name', 'description', 'icon', 'date_earned',
+        fields = ['id', 'user', 'name', 'description', 'date_earned',
                   'achievement_type', 'level']
         read_only_fields = ['id', 'date_earned']
 
@@ -401,4 +396,18 @@ class FinancialInsightSerializer(serializers.ModelSerializer):
         model = FinancialInsight
         fields = ['id', 'user', 'title', 'description', 'created_at', 'insight_type',
                   'priority', 'viewed', 'related_data']
-        read_only_fields = ['id', 'created_at']  
+        read_only_fields = ['id', 'created_at']   
+
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
+    class Meta:
+        model = Subscription
+        fields = ['id', 'user', 'plan_id', 'current_period_start', 'current_period_end', 'status',
+                  'cancel_at_period_end', 'stripe_subscription_id', 'currency', 'payment_method',
+                  'is_auto_renew', 'next_billing_date', 'amount']
+        
+        read_only_fields = ['id', 'current_period_start', 'current_period_end', 'next_billing_date']
+        

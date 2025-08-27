@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 interface SubscriptionPlansProps {
   onPlanSelect?: (planId: string) => void;
   showCurrentPlan?: boolean;
-}
+} 
 
 const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ 
   onPlanSelect,

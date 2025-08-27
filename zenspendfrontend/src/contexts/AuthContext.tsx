@@ -63,7 +63,9 @@ const mockData = {
     id: '1',
     first_name: 'Sophie',
     last_name: 'MARTIN',
+    phone_number: '+33 6 12 34 56 78',
     email: 'sophie.martin@example.com',
+    preferred_currency: 'EUR',
     avatar: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=100',
   },
   transactions: [
@@ -703,7 +705,7 @@ const signup = async (userData: {
     refreshToken,
     fetchTransactions,
     createTransaction,
-    updateTransaction,
+    updateTransaction, 
     deleteTransaction,
     fetchAccounts,
     createAccount,

@@ -5,17 +5,19 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import Avatar from '../../components/ui/Avatar';
 import { useUserStore } from '../../store/useUserStore';
 import { useTheme } from '../../hooks/useTheme';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ProfilePage: React.FC = () => {
-  const { user, preferences, updatePreferences } = useUserStore();
+  const { preferences, updatePreferences } = useUserStore();
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   
   const [personalInfo, setPersonalInfo] = useState({
-    name: user?.name || '',
+    name: user?.first_name|| '',
     email: user?.email || '',
-    phone: '+33 6 12 34 56 78',
+    phone: user?.phone_number || '',
     language: preferences.language,
-    currency: preferences.currency,
+    currency: user?.preferred_currency || 'EUR',
   });
 
   const [notifications, setNotifications] = useState({
@@ -43,7 +45,7 @@ const ProfilePage: React.FC = () => {
         <div className="flex items-center mb-8">
           <Avatar 
             src={user?.avatar}
-            name={user?.name || 'User'}
+            name={user?.first_name + ' ' + user?.last_name}
             size="lg"
             className="mr-4"
           />
@@ -72,7 +74,7 @@ const ProfilePage: React.FC = () => {
                       type="text"
                       id="name"
                       className="input"
-                      value={personalInfo.name}
+                      value={user?.first_name + ' ' + user?.last_name}
                       onChange={e => setPersonalInfo(prev => ({ ...prev, name: e.target.value }))}
                     />
                   </div>

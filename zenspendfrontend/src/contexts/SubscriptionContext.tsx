@@ -7,8 +7,8 @@ import toast from 'react-hot-toast';
 interface SubscriptionContextType {
   subscription: UserSubscription | null;
   currentPlan: SubscriptionPlan | null;
-  featureAccess: FeatureAccess;
-  isLoading: boolean;
+  featureAccess: FeatureAccess; 
+  isLoading: boolean; 
   
   // Subscription management
   subscribeToPlan: (planId: string) => Promise<void>;

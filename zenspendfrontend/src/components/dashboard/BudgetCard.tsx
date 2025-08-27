@@ -14,7 +14,7 @@ const BudgetCard: React.FC<BudgetCardProps> = ({ budget, onClick }) => {
   const percentage = (spent / amount) * 100;
   const remaining = amount - spent;
   
-  const getStatusColor = () => {
+  const getStatusColor = () => { 
     if (percentage >= 90) return 'error';
     if (percentage >= 75) return 'warning';
     return 'success';
