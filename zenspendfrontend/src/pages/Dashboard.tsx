@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Wallet, Clock, CalendarClock, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
@@ -19,72 +19,87 @@ import { useAuth } from '../contexts/AuthContext'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { 
-    user, 
-    fetchAccounts, 
-    fetchBudgets, 
-    fetchMonthlyExpenses, 
-    fetchTransactions,  
-    fetchGoals, 
-  }: {
-    user: any;
-    fetchAccounts: () => Promise<any[]>;
-    fetchBudgets: () => Promise<any[]>; 
-    fetchMonthlyExpenses: () => Promise<any[]>;
-    fetchTransactions: () => Promise<any[]>;
-    fetchGoals: () => Promise<any[]>;
+  const {
+    user,
+    fetchAccounts,
+    fetchBudgets,
+    fetchMonthlyExpenses,
+    fetchTransactions,
+    fetchGoals,
+    fetchDashboardData,
   } = useAuth();
-  
+
   const [accounts, setAccounts] = useState<any[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>({
+    totalBalance: 0,
+    monthlyIncome: 0,
+    monthlyExpenses: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const fetchedAccounts = await fetchAccounts();
-        const fetchedBudgets = await fetchBudgets();
-        const fetchedMonthlyExpenses = await fetchMonthlyExpenses();
-        const fetchedTransactions = await fetchTransactions();
-        
-        setAccounts(fetchedAccounts);
-        setBudgets(fetchedBudgets);
-        setMonthlyExpenses(fetchedMonthlyExpenses);
-        setTransactions(fetchedTransactions);
-        
-        // Assuming savings goals are part of the user data
-        console.log(fetchedAccounts, fetchedBudgets, fetchedMonthlyExpenses, fetchedTransactions);
-        const fetchedGoals = await fetchGoals();
-        setSavingsGoals(fetchedGoals);
+        console.log('Dashboard: Fetching data components...');
+        const [
+          fetchedAccounts,
+          fetchedBudgets,
+          fetchedMonthlyExpenses,
+          fetchedTransactions,
+          fetchedGoals,
+          fetchedSummary
+        ] = await Promise.all([
+          fetchAccounts().catch(e => { console.error('Accounts fetch failed', e); return []; }),
+          fetchBudgets().catch(e => { console.error('Budgets fetch failed', e); return []; }),
+          fetchMonthlyExpenses().catch(e => { console.error('Monthly expenses fetch failed', e); return []; }),
+          fetchTransactions().catch(e => { console.error('Transactions fetch failed', e); return []; }),
+          fetchGoals().catch(e => { console.error('Goals fetch failed', e); return []; }),
+          fetchDashboardData().catch(e => { console.error('Summary fetch failed', e); return { totalBalance: 0, monthlyIncome: 0, monthlyExpenses: 0 }; })
+        ]);
+
+        console.log('Dashboard: Data fetched successfully');
+        setAccounts(fetchedAccounts || []);
+        setBudgets(fetchedBudgets || []);
+        setMonthlyExpenses(fetchedMonthlyExpenses || []);
+        setTransactions(fetchedTransactions || []);
+        setSavingsGoals(fetchedGoals || []);
+        setSummary(fetchedSummary || { totalBalance: 0, monthlyIncome: 0, monthlyExpenses: 0 });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error in Dashboard fetchData:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    // Appeler fetchData seulement si l'utilisateur est connecté
     if (user) {
       fetchData();
     }
-  }, [user, fetchAccounts, fetchBudgets, fetchMonthlyExpenses, fetchTransactions, fetchGoals]); // Tableau de dépendances ajouté
-  
+  }, [user, fetchAccounts, fetchBudgets, fetchMonthlyExpenses, fetchTransactions, fetchGoals, fetchDashboardData]);
+
   if (!user) {
     return <div className="text-center py-8">Veuillez vous connecter pour accéder à votre tableau de bord.</div>;
   }
 
-  // Calculate total balance across all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-  
-  // Total income and expenses for current month
-  const currentMonthIncome = transactions
-    .filter(tx => tx.type === 'income')
-    .reduce((sum, tx) => sum + tx.amount, 0);
-    
-  const currentMonthExpenses = transactions
-    .filter(tx => tx.type === 'expense') 
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  const {
+    totalBalance = 0,
+    monthlyIncome: currentMonthIncome = 0,
+    monthlyExpenses: currentMonthExpenses = 0
+  } = summary || {};
+
+
   return (
     <div className="py-8">
       <div className="container mx-auto px-4 md:px-6">
@@ -97,7 +112,7 @@ const Dashboard: React.FC = () => {
             Nouvelle transaction
           </Button>
         </div>
-        
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -115,7 +130,7 @@ const Dashboard: React.FC = () => {
               </div>
             </CardHeader>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center">
@@ -131,7 +146,7 @@ const Dashboard: React.FC = () => {
               </div>
             </CardHeader>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center">
@@ -148,7 +163,7 @@ const Dashboard: React.FC = () => {
             </CardHeader>
           </Card>
         </div>
-        
+
         {/* Main Dashboard Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column */}
@@ -170,7 +185,7 @@ const Dashboard: React.FC = () => {
                 <ExpenseChart data={monthlyExpenses} />
               </CardContent>
             </Card>
-            
+
             {/* Accounts Section */}
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -186,7 +201,7 @@ const Dashboard: React.FC = () => {
                 <AddAccountCard onClick={() => navigate('/accounts/new')} />
               </div>
             </div>
-            
+
             {/* Budgets Section */}
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -201,7 +216,7 @@ const Dashboard: React.FC = () => {
                 ))}
               </div>
             </div>
-            
+
             {/* Savings Goals */}
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -217,14 +232,14 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Right Column */}
           <div className="space-y-6">
             {/* Usage Limits */}
             <UsageLimits type="accounts" currentCount={accounts.length} label="Comptes" />
             <UsageLimits type="budgets" currentCount={budgets.length} label="Budgets" />
             <UsageLimits type="goals" currentCount={savingsGoals.length} label="Objectifs" />
-            
+
             {/* Recent Transactions */}
             <Card>
               <CardHeader>
@@ -236,13 +251,13 @@ const Dashboard: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <TransactionsList 
+                <TransactionsList
                   transactions={transactions.slice(0, 5)}
                   onViewAllClick={() => navigate('/transactions')}
                 />
               </CardContent>
             </Card>
-            
+
             {/* Category Distribution */}
             <Card>
               <CardHeader>
@@ -252,7 +267,7 @@ const Dashboard: React.FC = () => {
                 <CategoryChart />
               </CardContent>
             </Card>
-            
+
             {/* Upcoming Bills */}
             <Card>
               <CardHeader>
@@ -274,7 +289,7 @@ const Dashboard: React.FC = () => {
                       850,00 €
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-3 bg-surface rounded-md">
                     <div className="flex items-center">
                       <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning mr-3">
@@ -289,7 +304,7 @@ const Dashboard: React.FC = () => {
                       75,00 €
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-3 bg-surface rounded-md">
                     <div className="flex items-center">
                       <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning mr-3">

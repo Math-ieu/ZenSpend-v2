@@ -24,7 +24,7 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
-venv/
+.venv/
 node_modules/
 
 package-lock.json

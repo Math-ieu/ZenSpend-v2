@@ -23,6 +23,8 @@ import GoalsPage from './pages/goals/GoalsPage';
 import NewGoalPage from './pages/goals/NewGoalPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import SubscriptionPage from './pages/subscription/SubscriptionPage';
+import DebtPage from './pages/debts/DebtPage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
 
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext';
@@ -43,7 +45,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
               </Route>
-              
+
               {/* Protected Routes */}
               <Route element={
                 <PrivateRoute>
@@ -61,8 +63,10 @@ function App() {
                 <Route path="/goals/new" element={<NewGoalPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/subscription" element={<SubscriptionPage />} />
+                <Route path="/dettes" element={<DebtPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
               </Route>
-              
+
               {/* Not Found Route */}
               <Route path="*" element={<NotFound />} />
             </Routes>

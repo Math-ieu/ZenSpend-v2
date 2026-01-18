@@ -4,6 +4,7 @@ import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const AccountSchema = Yup.object().shape({
@@ -26,6 +27,7 @@ const AccountSchema = Yup.object().shape({
 
 const NewAccountPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, createAccount } = useAuth();
 
   return (
     <div className="py-8">
@@ -38,7 +40,7 @@ const NewAccountPage: React.FC = () => {
           initialValues={{
             name: '',
             type: 'checking',
-            balance: '',
+            balance: 0,
             currency: 'EUR',
             accountNumber: '',
             institution: ''
@@ -46,11 +48,26 @@ const NewAccountPage: React.FC = () => {
           validationSchema={AccountSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
-              // Here you would normally make an API call
-              console.log('New account:', values);
+              if (!user) {
+                toast.error('Vous devez être connecté');
+                return;
+              }
+
+              const accountData = {
+                name: values.name,
+                account_type: values.type,
+                balance: values.balance,
+                currency: values.currency,
+                account_number: values.accountNumber,
+                institution: values.institution,
+                user: user.id
+              };
+
+              await createAccount(accountData);
               toast.success('Compte créé avec succès');
               navigate('/accounts');
             } catch (error) {
+              console.error('Error creating account:', error);
               toast.error('Erreur lors de la création du compte');
             } finally {
               setSubmitting(false);

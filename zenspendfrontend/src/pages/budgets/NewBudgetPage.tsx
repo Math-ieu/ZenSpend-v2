@@ -8,7 +8,7 @@ import Select from 'react-select';
 import { fr } from 'date-fns/locale';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
-import { categories } from '../../lib/mockData';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const BudgetSchema = Yup.object().shape({
@@ -16,7 +16,7 @@ const BudgetSchema = Yup.object().shape({
     .required('Le nom est requis')
     .min(3, 'Le nom doit contenir au moins 3 caractères'),
   amount: Yup.number()
-    .required('Le montant est requis') 
+    .required('Le montant est requis')
     .min(0, 'Le montant doit être positif'),
   startDate: Yup.date()
     .required('La date de début est requise'),
@@ -33,11 +33,32 @@ const BudgetSchema = Yup.object().shape({
 
 const NewBudgetPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, createBudget, fetchCategories } = useAuth();
+  const [categories, setCategories] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await fetchCategories();
+        setCategories(data || []);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadCategories();
+  }, [fetchCategories]);
 
   const categoryOptions = categories.map(cat => ({
     value: cat.id,
     label: cat.name
   }));
+
+  if (isLoading) {
+    return <div className="py-8 text-center">Chargement...</div>;
+  }
 
   return (
     <div className="py-8">
@@ -49,7 +70,7 @@ const NewBudgetPage: React.FC = () => {
         <Formik
           initialValues={{
             name: '',
-            amount: '',
+            amount: 0,
             startDate: new Date(),
             endDate: new Date(),
             category: '',
@@ -59,11 +80,28 @@ const NewBudgetPage: React.FC = () => {
           validationSchema={BudgetSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
-              // Here you would normally make an API call
-              console.log('New budget:', values);
+              if (!user) {
+                toast.error('Vous devez être connecté');
+                return;
+              }
+
+              const budgetData = {
+                name: values.name,
+                amount: values.amount,
+                start_date: values.startDate.toISOString(),
+                end_date: values.endDate.toISOString(),
+                alert_threshold: values.alertThreshold,
+                is_recurring: values.isRecurring,
+                categories: [values.category],
+                user: user.id,
+                accounts: [] // Optional
+              };
+
+              await createBudget(budgetData);
               toast.success('Budget créé avec succès');
               navigate('/budgets');
             } catch (error) {
+              console.error('Error creating budget:', error);
               toast.error('Erreur lors de la création du budget');
             } finally {
               setSubmitting(false);

@@ -659,3 +659,115 @@ class RecurringScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
             Q(transaction__user=self.request.user) | 
             Q(budget__user=self.request.user)
         ).distinct()
+
+
+# ==================== ANALYTICS & DASHBOARD VIEWS ====================
+
+class DashboardSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # Calculate total balance across all accounts
+        total_balance = BankAccount.objects.filter(user=user, is_active=True).aggregate(
+            total=Sum('balance')
+        )['total'] or 0
+
+        # Current month income and expenses
+        today = datetime.now()
+        start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        monthly_income = Transaction.objects.filter(
+            user=user, 
+            date__gte=start_of_month,
+            amount__gt=0
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        monthly_expenses = Transaction.objects.filter(
+            user=user, 
+            date__gte=start_of_month,
+            amount__lt=0
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        return Response({
+            'totalBalance': float(total_balance),
+            'monthlyIncome': float(monthly_income),
+            'monthlyExpenses': abs(float(monthly_expenses)),
+            'currency': user.preferred_currency or 'EUR'
+        })
+
+
+class AnalyticsMonthlyExpensesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        # Last 6 months
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=180)
+        
+        # Simple grouping by month
+        data = []
+        for i in range(6):
+            month_date = end_date - timedelta(days=i*30)
+            month_name = month_date.strftime('%b')
+            
+            month_start = month_date.replace(day=1)
+            next_month = (month_start + timedelta(days=32)).replace(day=1)
+            
+            expenses = abs(Transaction.objects.filter(
+                user=user, 
+                date__gte=month_start,
+                date__lt=next_month,
+                amount__lt=0
+            ).aggregate(total=Sum('amount'))['total'] or 0)
+            
+            income = Transaction.objects.filter(
+                user=user, 
+                date__gte=month_start,
+                date__lt=next_month,
+                amount__gt=0
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            
+            data.append({
+                'month': month_name,
+                'expenses': float(expenses),
+                'income': float(income)
+            })
+            
+        return Response(data[::-1])
+
+
+class AnalyticsCategoryDistributionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        # Expenses by category for current month
+        today = datetime.now()
+        start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        category_data = Transaction.objects.filter(
+            user=user,
+            date__gte=start_of_month,
+            amount__lt=0
+        ).values('category__name', 'category__color').annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        )
+        
+        labels = []
+        data = []
+        colors = []
+        
+        for item in category_data:
+            labels.append(item['category__name'] or 'Sans catégorie')
+            data.append(abs(float(item['total'] or 0)))
+            colors.append(item['category__color'] or '#CBD5E1')
+            
+        return Response({
+            'labels': labels,
+            'data': data,
+            'colors': colors
+        })

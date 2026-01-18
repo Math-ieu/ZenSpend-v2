@@ -4,15 +4,46 @@ import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import AccountCard, { AddAccountCard } from '../../components/dashboard/AccountCard';
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
-import { accounts, monthlyExpenses, transactions } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const AccountsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { fetchAccounts, fetchMonthlyExpenses, fetchTransactions } = useAuth();
+
+  const [accounts, setAccounts] = React.useState<any[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = React.useState<any[]>([]);
+  const [transactions, setTransactions] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fetchedAccounts, fetchedMonthlyExpenses, fetchedTransactions] = await Promise.all([
+          fetchAccounts(),
+          fetchMonthlyExpenses(),
+          fetchTransactions()
+        ]);
+        setAccounts(fetchedAccounts);
+        setMonthlyExpenses(fetchedMonthlyExpenses);
+        setTransactions(fetchedTransactions);
+      } catch (error) {
+        console.error('Error fetching accounts data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [fetchAccounts, fetchMonthlyExpenses, fetchTransactions]);
+
+  if (isLoading) {
+    return <div className="py-8 text-center">Chargement...</div>;
+  }
+
   // Calculate total balance across all accounts
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-  const navigate = useNavigate();
-  
+
   // Get recent transactions
   const recentTransactions = transactions.slice(0, 5);
 
@@ -88,7 +119,7 @@ const AccountsPage: React.FC = () => {
               {accounts.map(account => (
                 <AccountCard key={account.id} account={account} />
               ))}
-              <AddAccountCard />
+              <AddAccountCard onClick={() => navigate('/accounts/new')} />
             </div>
 
             {/* Balance Evolution */}
@@ -116,9 +147,8 @@ const AccountsPage: React.FC = () => {
                         <p className="text-sm font-medium text-foreground">{transaction.description}</p>
                         <p className="text-xs text-muted">{transaction.date}</p>
                       </div>
-                      <span className={`text-sm font-medium ${
-                        transaction.type === 'income' ? 'text-success' : 'text-error'
-                      }`}>
+                      <span className={`text-sm font-medium ${transaction.type === 'income' ? 'text-success' : 'text-error'
+                        }`}>
                         {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </span>
                     </div>

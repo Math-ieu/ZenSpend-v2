@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, Home, PieChart, Wallet, Banknote, Target, Settings, LogOut } from 'lucide-react';
+import { Menu, X, ChevronDown, Home, PieChart, Wallet, Banknote, Target, Settings, LogOut, Bell, Coins } from 'lucide-react';
 import { Crown } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import ThemeToggle from '../ui/ThemeToggle';
@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
-import Logo from '../ui/logo'; 
+import Logo from '../ui/logo';
 
 interface NavItemProps {
   to: string;
@@ -23,8 +23,8 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, onClick })
     to={to}
     className={cn(
       'flex items-center px-3 py-2 text-sm rounded-md transition-colors',
-      isActive 
-        ? 'bg-primary/10 text-primary font-medium' 
+      isActive
+        ? 'bg-primary/10 text-primary font-medium'
         : 'text-foreground hover:bg-surface'
     )}
     onClick={onClick}
@@ -42,21 +42,21 @@ const Header: React.FC = () => {
   const { currentPlan } = useSubscription();
 
   const closeMenu = () => setIsMenuOpen(false);
-  
+
   // Check if current route is authenticated route
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
   const isLandingPage = location.pathname === '/';
-  
+
   // Handle scroll events to change header style
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
-    
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
+
   // Navigation items
   const mainNavItems = [
     { to: '/dashboard', icon: <Home size={18} />, label: 'Dashboard' },
@@ -64,9 +64,10 @@ const Header: React.FC = () => {
     { to: '/budgets', icon: <PieChart size={18} />, label: 'Budgets' },
     { to: '/accounts', icon: <Wallet size={18} />, label: 'Accounts' },
     { to: '/goals', icon: <Target size={18} />, label: 'Savings Goals' },
+    { to: '/dettes', icon: <Coins size={18} />, label: 'Dettes' },
     { to: '/subscription', icon: <Crown size={18} />, label: 'Subscription' },
   ];
-  
+
   // Landing page navigation items
   const landingNavItems = [
     { to: '/#features', label: 'Features' },
@@ -85,13 +86,13 @@ const Header: React.FC = () => {
       toast.error('Erreur lors de la déconnexion');
     }
   };
-  
+
   return (
-    <header 
+    <header
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-200',
-        isScrolled || !isLandingPage 
-          ? 'bg-background/95 backdrop-blur-sm shadow-sm' 
+        isScrolled || !isLandingPage
+          ? 'bg-background/95 backdrop-blur-sm shadow-sm'
           : 'bg-transparent'
       )}
     >
@@ -100,7 +101,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <Logo />
-            
+
           </Link>
 
           {/* Desktop Navigation */}
@@ -135,7 +136,15 @@ const Header: React.FC = () => {
           {/* Right Section - Auth/User */}
           <div className="flex items-center space-x-4">
             <ThemeToggle />
-            
+
+            {/* Notifications */}
+            {isAuthenticated && (
+              <Link to="/notifications" className="relative p-2 text-muted hover:text-primary transition-colors">
+                <Bell size={20} />
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary"></span>
+              </Link>
+            )}
+
             {/* Subscription Badge */}
             {isAuthenticated && currentPlan && currentPlan.id !== 'free' && (
               <div className="hidden md:flex items-center px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
@@ -143,35 +152,35 @@ const Header: React.FC = () => {
                 {currentPlan.name}
               </div>
             )}
-            
+
             {isAuthenticated ? (
               <div className="relative">
                 <button
                   className="flex items-center space-x-2 focus:outline-none"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                 >
-                  <Avatar 
-                    src={user?.avatar} 
-                    name={user?.first_name || 'User'} 
-                    size="sm" 
+                  <Avatar
+                    src={user?.avatar}
+                    name={user?.first_name || 'User'}
+                    size="sm"
                   />
                   <span className="hidden md:inline-block text-sm font-medium text-foreground">
                     {user?.first_name || 'User'}
                   </span>
                   <ChevronDown size={16} className="text-muted" />
                 </button>
-                
+
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-surface rounded-md shadow-lg py-1 z-50 border border-border">
-                    <Link 
-                      to="/profile" 
+                    <Link
+                      to="/profile"
                       className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-background"
                       onClick={closeMenu}
                     >
                       <Settings size={16} className="mr-2" />
                       Profile Settings
                     </Link>
-                    <button 
+                    <button
                       className="flex w-full items-center px-4 py-2 text-sm text-foreground hover:bg-background"
                       onClick={handleLogout}
                     >
@@ -197,7 +206,7 @@ const Header: React.FC = () => {
                 </Link>
               </div>
             ) : null}
-            
+
             {/* Mobile Menu Button */}
             <button
               className="inline-flex md:hidden items-center justify-center p-2 rounded-md text-foreground hover:bg-surface focus:outline-none"
@@ -208,7 +217,7 @@ const Header: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="md:hidden bg-background border-t border-border">

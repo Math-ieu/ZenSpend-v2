@@ -4,7 +4,8 @@ import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import TransactionsList from '../../components/dashboard/TransactionsList';
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
-import { transactions, monthlyExpenses } from '../../lib/mockData';
+import { formatCurrency } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const TransactionsPage: React.FC = () => {
@@ -14,15 +15,45 @@ const TransactionsPage: React.FC = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const navigate = useNavigate();
 
+  const { fetchTransactions, fetchMonthlyExpenses, fetchCategories } = useAuth();
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fetchedTransactions, fetchedMonthlyExpenses, fetchedCategories] = await Promise.all([
+          fetchTransactions(),
+          fetchMonthlyExpenses(),
+          fetchCategories()
+        ]);
+        setTransactions(fetchedTransactions);
+        setMonthlyExpenses(fetchedMonthlyExpenses);
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error('Error fetching transactions data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [fetchTransactions, fetchMonthlyExpenses, fetchCategories]);
+
   // Filter transactions based on search and filters
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || transaction.category === selectedCategory;
     const matchesType = selectedType === 'all' || transaction.type === selectedType;
-    
+
     return matchesSearch && matchesCategory && matchesType;
   });
- 
+
+  if (isLoading) {
+    return <div className="py-8 text-center">Chargement...</div>;
+  }
+
   return (
     <div className="py-8">
       <div className="container mx-auto px-4 md:px-6">
@@ -53,7 +84,7 @@ const TransactionsPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Category Filter */} 
+                {/* Category Filter */}
                 <div>
                   <select
                     className="input"
@@ -61,10 +92,9 @@ const TransactionsPage: React.FC = () => {
                     onChange={(e) => setSelectedCategory(e.target.value)}
                   >
                     <option value="all">Toutes les catégories</option>
-                    <option value="Alimentation">Alimentation</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Logement">Logement</option>
-                    <option value="Loisirs">Loisirs</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -115,7 +145,7 @@ const TransactionsPage: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <TransactionsList 
+                <TransactionsList
                   transactions={filteredTransactions}
                   showViewAll={false}
                 />
@@ -142,15 +172,25 @@ const TransactionsPage: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-muted">Total des dépenses</p>
-                    <p className="text-2xl font-semibold text-error">-2,450.30 €</p>
+                    <p className="text-2xl font-semibold text-error">
+                      -{formatCurrency(filteredTransactions
+                        .filter(tx => tx.type === 'expense')
+                        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0))}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted">Total des revenus</p>
-                    <p className="text-2xl font-semibold text-success">+3,750.00 €</p>
+                    <p className="text-2xl font-semibold text-success">
+                      +{formatCurrency(filteredTransactions
+                        .filter(tx => tx.type === 'income')
+                        .reduce((sum, tx) => sum + tx.amount, 0))}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted">Solde net</p>
-                    <p className="text-2xl font-semibold text-primary">+1,299.70 €</p>
+                    <p className="text-2xl font-semibold text-primary">
+                      {formatCurrency(filteredTransactions.reduce((sum, tx) => sum + (tx.type === 'income' ? tx.amount : -Math.abs(tx.amount)), 0))}
+                    </p>
                   </div>
                 </div>
               </CardContent>

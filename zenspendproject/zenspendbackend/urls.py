@@ -109,6 +109,11 @@ urlpatterns = [
     path('recurring-schedules/', views.RecurringScheduleListCreateView.as_view(), name='recurring-schedule-list-create'),
     path('recurring-schedules/<int:pk>/', views.RecurringScheduleDetailView.as_view(), name='recurring-schedule-detail'),
     
+    # ==================== DASHBOARD & ANALYTICS ENDPOINTS ====================
+    path('dashboard/', views.DashboardSummaryView.as_view(), name='dashboard-summary'),
+    path('analytics/monthly-expenses/', views.AnalyticsMonthlyExpensesView.as_view(), name='analytics-monthly-expenses'),
+    path('analytics/category-distribution/', views.AnalyticsCategoryDistributionView.as_view(), name='analytics-category-distribution'),
+    
 ]
 
 

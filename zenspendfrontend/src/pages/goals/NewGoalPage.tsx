@@ -7,6 +7,7 @@ import DatePicker from 'react-datepicker';
 import { fr } from 'date-fns/locale';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const GoalSchema = Yup.object().shape({
@@ -36,6 +37,7 @@ const GoalSchema = Yup.object().shape({
 
 const NewGoalPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, createGoal } = useAuth();
 
   return (
     <div className="py-8">
@@ -47,22 +49,39 @@ const NewGoalPage: React.FC = () => {
         <Formik
           initialValues={{
             name: '',
-            targetAmount: '',
-            initialAmount: '',
+            targetAmount: 0,
+            initialAmount: 0,
             targetDate: new Date(),
             automaticSaving: false,
             savingFrequency: '',
-            savingAmount: '',
+            savingAmount: 0,
             notes: ''
           }}
           validationSchema={GoalSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
-              // Here you would normally make an API call
-              console.log('New goal:', values);
+              if (!user) {
+                toast.error('Vous devez être connecté');
+                return;
+              }
+
+              const goalData = {
+                name: values.name,
+                target_amount: values.targetAmount,
+                current_amount: values.initialAmount || 0,
+                deadline: values.targetDate.toISOString(),
+                auto_save: values.automaticSaving,
+                auto_save_frequency: values.savingFrequency || null,
+                auto_save_amount: values.savingAmount || 0,
+                notes: values.notes,
+                user: user.id
+              };
+
+              await createGoal(goalData);
               toast.success('Objectif créé avec succès');
               navigate('/goals');
             } catch (error) {
+              console.error('Error creating goal:', error);
               toast.error('Erreur lors de la création de l\'objectif');
             } finally {
               setSubmitting(false);
