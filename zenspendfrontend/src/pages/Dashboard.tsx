@@ -103,12 +103,12 @@ const Dashboard: React.FC = () => {
   return (
     <div className="py-8">
       <div className="container mx-auto px-4 md:px-6">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Tableau de bord</h1>
-            <p className="text-muted">Bienvenue sur votre espace personnel ZenSpend</p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Vue d'ensemble</h1>
+            <p className="text-muted mt-2 text-lg">Heureux de vous revoir, <span className="font-semibold text-foreground">{user?.first_name || 'Utilisateur'}</span> </p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/transactions/new')}>
+          <Button leftIcon={<Plus size={18} />} onClick={() => navigate('/transactions/new')} size="lg" className="shadow-md hover:shadow-lg transition-all rounded-full px-6">
             Nouvelle transaction
           </Button>
         </div>

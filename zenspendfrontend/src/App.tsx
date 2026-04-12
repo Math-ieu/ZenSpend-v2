@@ -49,7 +49,7 @@ function App() {
               {/* Protected Routes */}
               <Route element={
                 <PrivateRoute>
-                  <AppLayout requireAuth hideFooter />
+                  <AppLayout requireAuth />
                 </PrivateRoute>
               }>
                 <Route path="/dashboard" element={<Dashboard />} />

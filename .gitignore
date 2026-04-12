@@ -41,3 +41,8 @@ sqlite3.db
 # Python cache
 *.pyc
 *.pyo   
+# Python virtual environment
+venv/
+db.sqlite3
+# Logs
+logs/   

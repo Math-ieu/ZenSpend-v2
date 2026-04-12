@@ -577,7 +577,7 @@ class ZenSpendDataPopulator:
     def populate_all_data(self):
         """Exécuter le processus complet de création des données"""
         try:
-            self.log("🚀 Début de la création des données fictives ZenSpend")
+            self.log("Début de la création des données fictives ZenSpend")
             
             # Étape 1: Créer les utilisateurs
             self.create_users()

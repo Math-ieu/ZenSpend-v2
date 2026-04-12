@@ -97,44 +97,46 @@ const Header: React.FC = () => {
       )}
     >
       <div className="container mx-auto px-4 md:px-6">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <Logo />
+        <div className="flex h-16 items-center justify-between lg:justify-center lg:space-x-16 xl:space-x-32">
+          {/* Group Logo and Nav together in center-left */}
+          <div className="flex items-center space-x-8 xl:space-x-12">
+            {/* Logo */}
+            <Link to="/" className="flex items-center space-x-2">
+              <Logo />
+            </Link>
 
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            {isAuthenticated && !isAuthPage ? (
-              <>
-                {mainNavItems.map((item) => (
-                  <NavItem
-                    key={item.to}
-                    to={item.to}
-                    icon={item.icon}
-                    label={item.label}
-                    isActive={location.pathname === item.to}
-                  />
-                ))}
-              </>
-            ) : isLandingPage ? (
-              <>
-                {landingNavItems.map((item) => (
-                  <a
-                    key={item.to}
-                    href={item.to}
-                    className="px-3 py-2 text-sm text-foreground hover:text-primary transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                ))}
-              </>
-            ) : null}
-          </nav>
+            {/* Desktop Navigation */}
+            <nav className="hidden xl:flex items-center space-x-6">
+              {isAuthenticated && !isAuthPage ? (
+                <>
+                  {mainNavItems.map((item) => (
+                    <NavItem
+                      key={item.to}
+                      to={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      isActive={location.pathname === item.to}
+                    />
+                  ))}
+                </>
+              ) : isLandingPage ? (
+                <>
+                  {landingNavItems.map((item) => (
+                    <a
+                      key={item.to}
+                      href={item.to}
+                      className="px-3 py-2 text-sm text-foreground hover:text-primary transition-colors"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </>
+              ) : null}
+            </nav>
+          </div>
 
           {/* Right Section - Auth/User */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-8">
             <ThemeToggle />
 
             {/* Notifications */}

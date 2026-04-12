@@ -55,11 +55,11 @@
   }
 
   .card {
-    @apply bg-surface border border-border rounded-lg shadow-sm overflow-hidden transition-all duration-200;
+    @apply bg-surface border border-border/80 rounded-xl shadow-sm hover:shadow-md hover:border-border overflow-hidden transition-all duration-300;
   }
 
   .input {
-    @apply w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-200;
+    @apply w-full px-4 py-2.5 bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-200;
   }
   
   .label {
