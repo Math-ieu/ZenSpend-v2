@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getLoginPathForSegment, parseSegmentRouteSlug } from '../lib/segmentRouting';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -19,8 +20,12 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
+    const dashboardRouteMatch = location.pathname.match(/^\/dashboard\/([^/]+)/);
+    const routeSegment = parseSegmentRouteSlug(dashboardRouteMatch?.[1]);
+    const loginPath = getLoginPathForSegment(routeSegment);
+
     // Redirect to login page with return url
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   return <>{children}</>; 

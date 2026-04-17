@@ -11,16 +11,33 @@ from .serializers import *
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.core import signing
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Sum, Count
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
 from decimal import Decimal
+import hashlib
+from .services.email_delivery import send_password_reset_email
 User = get_user_model()
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _password_reset_fingerprint(user):
+    return hashlib.sha256(user.password.encode('utf-8')).hexdigest()[:24]
+
+
+def _segment_to_slug(segment):
+    segment_map = {
+        'couples': 'couples',
+        'young_professionals': 'young-professionals',
+        'families': 'families',
+    }
+    return segment_map.get(segment, 'young-professionals')
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
@@ -62,6 +79,7 @@ class UserRegistrationView(generics.CreateAPIView):
                             'last_name': user.last_name,
                             'phone_number': user.phone_number,
                             'preferred_currency': user.preferred_currency,
+                            'user_segment': user.user_segment,
                         }
                     }
                 }, 
@@ -104,6 +122,93 @@ class UserLogoutView(APIView):
                               status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': 'Token invalide'}, status=status.HTTP_400_BAD_REQUEST) 
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data['email'].strip().lower()
+        requested_segment = serializer.validated_data.get('user_segment')
+        user = User.objects.filter(email__iexact=email).first()
+
+        response_payload = {
+            'status': 'success',
+            'message': 'Si un compte existe, un lien de reinitialisation a ete genere.',
+        }
+
+        if user:
+            token = signing.dumps(
+                {
+                    'user_id': user.id,
+                    'fp': _password_reset_fingerprint(user),
+                },
+                salt='password-reset',
+            )
+            effective_segment = requested_segment or user.user_segment
+            reset_url = (
+                f"{settings.FRONTEND_RESET_PASSWORD_URL.rstrip('/')}/"
+                f"{_segment_to_slug(effective_segment)}?token={token}"
+            )
+            send_password_reset_email(user.email, reset_url)
+
+            if settings.PASSWORD_RESET_EXPOSE_LINK:
+                response_payload['reset_url'] = reset_url
+
+        return Response(response_payload, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data['token']
+
+        try:
+            token_data = signing.loads(
+                token,
+                salt='password-reset',
+                max_age=settings.PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS,
+            )
+        except signing.SignatureExpired:
+            return Response(
+                {'status': 'error', 'message': 'Le lien de reinitialisation a expire.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except signing.BadSignature:
+            return Response(
+                {'status': 'error', 'message': 'Le token de reinitialisation est invalide.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_id = token_data.get('user_id')
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            return Response(
+                {'status': 'error', 'message': 'Utilisateur introuvable.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        expected_fingerprint = token_data.get('fp')
+        if expected_fingerprint != _password_reset_fingerprint(user):
+            return Response(
+                {'status': 'error', 'message': 'Ce lien de reinitialisation n est plus valide.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+
+        return Response(
+            {'status': 'success', 'message': 'Votre mot de passe a ete reinitialise avec succes.'},
+            status=status.HTTP_200_OK,
+        )
 
 
 
@@ -327,6 +432,178 @@ class DebtTrackerDetailView(generics.RetrieveUpdateDestroyAPIView):
         return DebtTracker.objects.filter(user=self.request.user)
 
 
+def _household_queryset_for_user(user):
+    return Household.objects.filter(
+        Q(owner=user) | Q(memberships__user=user, memberships__is_active=True)
+    ).distinct()
+
+
+def _can_manage_household(user, household):
+    if household.owner_id == user.id:
+        return True
+
+    return HouseholdMember.objects.filter(
+        household=household,
+        user=user,
+        is_active=True,
+        role__in=[
+            HouseholdMember.ROLE_OWNER,
+            HouseholdMember.ROLE_PARENT,
+            HouseholdMember.ROLE_PARTNER,
+        ],
+    ).exists()
+
+
+# ==================== HOUSEHOLD VIEWS ====================
+
+class HouseholdListCreateView(generics.ListCreateAPIView):
+    serializer_class = HouseholdSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return _household_queryset_for_user(self.request.user).order_by('-updated_at')
+
+    def perform_create(self, serializer):
+        household = serializer.save(
+            owner=self.request.user,
+            currency=self.request.user.preferred_currency or 'EUR',
+        )
+        membership, _ = HouseholdMember.objects.get_or_create(
+            household=household,
+            user=self.request.user,
+            defaults={
+                'role': HouseholdMember.ROLE_OWNER,
+                'is_active': True,
+            },
+        )
+        if membership.role != HouseholdMember.ROLE_OWNER or not membership.is_active:
+            membership.role = HouseholdMember.ROLE_OWNER
+            membership.is_active = True
+            membership.save(update_fields=['role', 'is_active'])
+
+
+class HouseholdDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = HouseholdSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return _household_queryset_for_user(self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        household = self.get_object()
+        if household.owner_id != request.user.id:
+            return Response(
+                {'message': 'Seul le proprietaire peut supprimer le foyer.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+class HouseholdMemberListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_household(self, request, household_id):
+        return get_object_or_404(_household_queryset_for_user(request.user), id=household_id)
+
+    def get(self, request, household_id):
+        household = self.get_household(request, household_id)
+        memberships = household.memberships.select_related('user').order_by('-role', 'joined_at')
+        serializer = HouseholdMemberSerializer(memberships, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, household_id):
+        household = self.get_household(request, household_id)
+
+        if not _can_manage_household(request.user, household):
+            return Response(
+                {'message': 'Vous n avez pas les droits pour gerer ce foyer.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = HouseholdMemberCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        member_user = serializer.get_member_user()
+
+        if member_user.id == household.owner_id:
+            role = HouseholdMember.ROLE_OWNER
+        else:
+            role = serializer.validated_data['role']
+
+        membership, created = HouseholdMember.objects.update_or_create(
+            household=household,
+            user=member_user,
+            defaults={
+                'role': role,
+                'is_active': True,
+            },
+        )
+
+        membership_serializer = HouseholdMemberSerializer(membership)
+        return Response(
+            {
+                'status': 'created' if created else 'updated',
+                'member': membership_serializer.data,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class HouseholdMemberDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_household(self, request, household_id):
+        return get_object_or_404(_household_queryset_for_user(request.user), id=household_id)
+
+    def patch(self, request, household_id, member_id):
+        household = self.get_household(request, household_id)
+
+        if not _can_manage_household(request.user, household):
+            return Response(
+                {'message': 'Vous n avez pas les droits pour gerer ce foyer.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        membership = get_object_or_404(household.memberships.select_related('user'), id=member_id)
+
+        if membership.user_id == household.owner_id:
+            membership.role = HouseholdMember.ROLE_OWNER
+            membership.is_active = True
+            membership.save(update_fields=['role', 'is_active'])
+            return Response(HouseholdMemberSerializer(membership).data)
+
+        role = request.data.get('role')
+        is_active = request.data.get('is_active')
+
+        if role in dict(HouseholdMember.ROLE_CHOICES):
+            membership.role = role
+
+        if isinstance(is_active, bool):
+            membership.is_active = is_active
+
+        membership.save(update_fields=['role', 'is_active'])
+        return Response(HouseholdMemberSerializer(membership).data)
+
+    def delete(self, request, household_id, member_id):
+        household = self.get_household(request, household_id)
+
+        if not _can_manage_household(request.user, household):
+            return Response(
+                {'message': 'Vous n avez pas les droits pour gerer ce foyer.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        membership = get_object_or_404(household.memberships.select_related('user'), id=member_id)
+
+        if membership.user_id == household.owner_id:
+            return Response(
+                {'message': 'Le proprietaire ne peut pas etre retire du foyer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        membership.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # ==================== SHARED BUDGET VIEWS ====================
 
 class SharedBudgetListCreateView(generics.ListCreateAPIView):
@@ -335,7 +612,10 @@ class SharedBudgetListCreateView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         return SharedBudget.objects.filter(
-            Q(owner=self.request.user) | Q(members=self.request.user)
+            Q(owner=self.request.user)
+            | Q(members=self.request.user)
+            | Q(household__owner=self.request.user)
+            | Q(household__memberships__user=self.request.user, household__memberships__is_active=True)
         ).distinct()
     
     def perform_create(self, serializer):
@@ -348,7 +628,10 @@ class SharedBudgetDetailView(generics.RetrieveUpdateDestroyAPIView):
     
     def get_queryset(self):
         return SharedBudget.objects.filter(
-            Q(owner=self.request.user) | Q(members=self.request.user)
+            Q(owner=self.request.user)
+            | Q(members=self.request.user)
+            | Q(household__owner=self.request.user)
+            | Q(household__memberships__user=self.request.user, household__memberships__is_active=True)
         ).distinct()
 
 

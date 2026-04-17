@@ -1,6 +1,14 @@
 
 from django.urls import path
 from .views import *
+from .integration_views import (
+    BankIntegrationStatusView,
+    BankLinkSessionCreateView,
+    BankCallbackView,
+    BankSyncTransactionsView,
+    BankSyncFromProviderView,
+)
+from .sso_views import SSOProviderStartView, SSOProviderCallbackView
 from rest_framework_simplejwt.views import (
     TokenRefreshView, 
 )
@@ -10,6 +18,10 @@ urlpatterns = [
     path('auth/login/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/logout/', UserLogoutView.as_view(), name='logout'),
+    path('auth/sso/<str:provider>/', SSOProviderStartView.as_view(), name='sso-start'),
+    path('auth/sso/<str:provider>/callback/', SSOProviderCallbackView.as_view(), name='sso-callback'),
+    path('auth/password-reset/request/', PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     
     # Inscription et gestion de compte 
     path('auth/register/', UserRegistrationView.as_view(), name='register'), 
@@ -49,6 +61,12 @@ urlpatterns = [
     # ==================== DEBT TRACKER ENDPOINTS ====================
     path('debt-trackers/', views.DebtTrackerListCreateView.as_view(), name='debt-tracker-list-create'),
     path('debt-trackers/<int:pk>/', views.DebtTrackerDetailView.as_view(), name='debt-tracker-detail'),
+
+    # ==================== HOUSEHOLD ENDPOINTS ====================
+    path('households/', views.HouseholdListCreateView.as_view(), name='household-list-create'),
+    path('households/<int:pk>/', views.HouseholdDetailView.as_view(), name='household-detail'),
+    path('households/<int:household_id>/members/', views.HouseholdMemberListCreateView.as_view(), name='household-member-list-create'),
+    path('households/<int:household_id>/members/<int:member_id>/', views.HouseholdMemberDetailView.as_view(), name='household-member-detail'),
     
     # ==================== SHARED BUDGET ENDPOINTS ====================
     path('shared-budgets/', views.SharedBudgetListCreateView.as_view(), name='shared-budget-list-create'),
@@ -113,6 +131,13 @@ urlpatterns = [
     path('dashboard/', views.DashboardSummaryView.as_view(), name='dashboard-summary'),
     path('analytics/monthly-expenses/', views.AnalyticsMonthlyExpensesView.as_view(), name='analytics-monthly-expenses'),
     path('analytics/category-distribution/', views.AnalyticsCategoryDistributionView.as_view(), name='analytics-category-distribution'),
+
+    # ==================== BANK INTEGRATION ENDPOINTS ====================
+    path('integrations/banking/status/', BankIntegrationStatusView.as_view(), name='bank-integration-status'),
+    path('integrations/banking/link-session/', BankLinkSessionCreateView.as_view(), name='bank-link-session-create'),
+    path('integrations/banking/callback/', BankCallbackView.as_view(), name='bank-callback'),
+    path('integrations/banking/sync/', BankSyncTransactionsView.as_view(), name='bank-sync-transactions'),
+    path('integrations/banking/sync-from-provider/', BankSyncFromProviderView.as_view(), name='bank-sync-from-provider'),
     
 ]
 

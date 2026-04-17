@@ -2,6 +2,14 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
 
+
+def default_notification_preferences():
+    return {
+        'email': True,
+        'app': True,
+        'budget_alerts': True,
+    }
+
 # zenspendproject/zenspendbackend/models.py
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -20,6 +28,15 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser):
+    SEGMENT_COUPLES = 'couples'
+    SEGMENT_YOUNG_PROFESSIONALS = 'young_professionals'
+    SEGMENT_FAMILIES = 'families'
+    USER_SEGMENT_CHOICES = [
+        (SEGMENT_COUPLES, 'Couples'),
+        (SEGMENT_YOUNG_PROFESSIONALS, 'Young Professionals'),
+        (SEGMENT_FAMILIES, 'Families'),
+    ]
+
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -29,7 +46,8 @@ class User(AbstractBaseUser):
     is_admin = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
     preferred_currency = models.CharField(max_length=3, default='EUR')
-    notification_preferences = models.JSONField(default=dict(email=True, app=True, budget_alerts=True))
+    user_segment = models.CharField(max_length=32, choices=USER_SEGMENT_CHOICES, default=SEGMENT_YOUNG_PROFESSIONALS)
+    notification_preferences = models.JSONField(default=default_notification_preferences)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
@@ -269,6 +287,7 @@ class DebtTracker(models.Model):
 class SharedBudget(models.Model):
     name = models.CharField(max_length=100)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_budgets')
+    household = models.ForeignKey('Household', on_delete=models.CASCADE, related_name='shared_budgets', null=True, blank=True)
     members = models.ManyToManyField(User, related_name='shared_budgets')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     start_date = models.DateTimeField(default=timezone.now)
@@ -281,6 +300,53 @@ class SharedBudget(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Household(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=200, blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_households')
+    currency = models.CharField(max_length=3, default='EUR')
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'households'
+        indexes = [
+            models.Index(fields=['owner', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class HouseholdMember(models.Model):
+    ROLE_OWNER = 'owner'
+    ROLE_PARENT = 'parent'
+    ROLE_PARTNER = 'partner'
+    ROLE_CHILD = 'child'
+    ROLE_CHOICES = [
+        (ROLE_OWNER, 'Owner'),
+        (ROLE_PARENT, 'Parent'),
+        (ROLE_PARTNER, 'Partner'),
+        (ROLE_CHILD, 'Child'),
+    ]
+
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name='memberships')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='household_memberships')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_CHILD)
+    is_active = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'household_members'
+        unique_together = ['household', 'user']
+        indexes = [
+            models.Index(fields=['household', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.full_name} ({self.role})"
 
 class DebtRecord(models.Model):
     creditor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='creditor_records')
@@ -560,3 +626,54 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.plan_id} ({self.status})"
+
+
+class BankConnection(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    provider = models.CharField(max_length=50)
+    external_connection_id = models.CharField(max_length=128)
+    status = models.CharField(max_length=30, choices=[
+        ('pending', 'Pending'),
+        ('connected', 'Connected'),
+        ('action_required', 'Action Required'),
+        ('disconnected', 'Disconnected'),
+        ('error', 'Error'),
+    ], default='pending')
+    institution_name = models.CharField(max_length=120, blank=True)
+    consent_expires_at = models.DateTimeField(null=True, blank=True)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'bank_connections'
+        unique_together = ['user', 'provider', 'external_connection_id']
+        indexes = [
+            models.Index(fields=['provider', 'status']),
+            models.Index(fields=['-updated_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.provider} ({self.status})"
+
+
+class ExternalTransaction(models.Model):
+    bank_connection = models.ForeignKey(BankConnection, on_delete=models.CASCADE, related_name='external_transactions')
+    bank_account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True)
+    transaction = models.OneToOneField(Transaction, on_delete=models.CASCADE, related_name='external_reference')
+    external_transaction_id = models.CharField(max_length=128)
+    payload_hash = models.CharField(max_length=64, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'external_transactions'
+        unique_together = ['bank_connection', 'external_transaction_id']
+        indexes = [
+            models.Index(fields=['-updated_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.bank_connection.provider}:{self.external_transaction_id}"

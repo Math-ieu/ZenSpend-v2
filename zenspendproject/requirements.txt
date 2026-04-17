@@ -11,3 +11,4 @@ PyJWT
 pymongo
 sqlparse
 python-dotenv
+resend

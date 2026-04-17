@@ -5,8 +5,35 @@ export type User = {
   phone_number: string;
   email: string;
   preferred_currency: string;
+  user_segment?: UserSegment;
   avatar?: string;
 };
+
+export type UserSegment = 'couples' | 'young_professionals' | 'families';
+
+export type HouseholdRole = 'owner' | 'parent' | 'partner' | 'child';
+
+export interface Household {
+  id: number;
+  name: string;
+  description: string;
+  owner: number;
+  owner_email: string;
+  currency: string;
+  members_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HouseholdMember {
+  id: number;
+  user: number;
+  user_email: string;
+  user_full_name: string;
+  role: HouseholdRole;
+  is_active: boolean;
+  joined_at: string;
+}
 
 export interface Transaction {
   id: string;
@@ -35,6 +62,20 @@ export interface Budget {
   period: 'monthly' | 'weekly' | 'yearly';
   startDate: string;
   endDate: string;
+}
+
+export interface SharedBudget {
+  id: number;
+  name: string;
+  owner: number;
+  household: number;
+  household_name?: string;
+  members: number[];
+  amount: string;
+  current_amount: string;
+  start_date: string;
+  end_date?: string | null;
+  categories: number[];
 }
 
 export interface SavingsGoal {

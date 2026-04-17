@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
+import { Household, HouseholdMember, HouseholdRole, SharedBudget, User, UserSegment } from '../types';
 import { toast } from 'react-hot-toast';
+import { persistUserSegment } from '../hooks/useUserSegment';
 
 
 
@@ -19,6 +20,7 @@ interface AuthContextType {
     email: string;
     phone_number: string;
     preferred_currency: string;
+    user_segment?: UserSegment;
     password: string;
     password_confirm: string;
   }) => Promise<void>;
@@ -41,6 +43,10 @@ interface AuthContextType {
   createBudget: (data: any) => Promise<any>;
   updateBudget: (id: string, data: any) => Promise<any>;
   deleteBudget: (id: string) => Promise<void>;
+  fetchSharedBudgets: () => Promise<SharedBudget[]>;
+  createSharedBudget: (data: any) => Promise<SharedBudget>;
+  updateSharedBudget: (id: number, data: any) => Promise<SharedBudget>;
+  deleteSharedBudget: (id: number) => Promise<void>;
 
   fetchGoals: () => Promise<any[]>;
   createGoal: (data: any) => Promise<any>;
@@ -56,6 +62,48 @@ interface AuthContextType {
 
   fetchDebts: () => Promise<any[]>;
   fetchNotifications: () => Promise<any[]>;
+  updateCurrentUser: (data: Partial<User>) => Promise<User>;
+
+  fetchHouseholds: () => Promise<Household[]>;
+  createHousehold: (data: { name: string; description?: string; currency?: string }) => Promise<Household>;
+  updateHousehold: (id: number, data: Partial<{ name: string; description: string; currency: string }>) => Promise<Household>;
+  fetchHouseholdMembers: (householdId: number) => Promise<HouseholdMember[]>;
+  addHouseholdMember: (householdId: number, data: { email: string; role?: HouseholdRole }) => Promise<HouseholdMember>;
+  updateHouseholdMember: (householdId: number, memberId: number, data: Partial<{ role: HouseholdRole; is_active: boolean }>) => Promise<HouseholdMember>;
+  removeHouseholdMember: (householdId: number, memberId: number) => Promise<void>;
+
+  fetchBankIntegrationStatus: () => Promise<any>;
+  createBankLinkSession: (payload?: { redirect_uri?: string; state?: string }) => Promise<any>;
+  processBankConnectionCallback: (payload: {
+    external_connection_id: string;
+    provider?: string;
+    institution_name?: string;
+    status?: 'pending' | 'connected' | 'action_required' | 'disconnected' | 'error';
+    metadata?: Record<string, any>;
+    accounts?: Array<{
+      external_account_id: string;
+      name: string;
+      account_type: 'checking' | 'savings' | 'credit' | 'investment' | 'cash' | 'other';
+      currency?: string;
+      balance?: string;
+      account_number?: string;
+    }>;
+  }) => Promise<any>;
+  syncBankConnectionTransactions: (payload: {
+    connection_id: number;
+    transactions: Array<{
+      id: string;
+      account_external_id?: string;
+      account_name?: string;
+      amount: string;
+      description?: string;
+      date?: string;
+      payee?: string;
+      status?: 'pending' | 'cleared' | 'reconciled';
+      notes?: string;
+    }>;
+  }) => Promise<any>;
+  syncBankConnectionFromProvider: (payload: { connection_id: number }) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +116,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!token && !!user;
+
+  const setUserAndSyncSegment = (nextUser: User | null) => {
+    setUser(nextUser);
+    if (nextUser) {
+      persistUserSegment(nextUser.user_segment);
+    }
+  };
 
 
 
@@ -188,7 +243,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       setToken(response.access);
-      setUser(response.user);
+      setUserAndSyncSegment(response.user);
       localStorage.setItem('token', response.access);
 
       if (response.refresh) {
@@ -282,6 +337,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Mappers
+  const normalizeCollectionResponse = (data: any): any[] => {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.results)) return data.results;
+    return [];
+  };
+
   const mapAccount = (data: any) => ({
     ...data,
     type: data.account_type || data.type,
@@ -313,7 +374,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Transaction methods
   const fetchTransactions = React.useCallback(async () => {
     const data = await apiCall('/transactions/');
-    return (data || []).map(mapTransaction);
+    return normalizeCollectionResponse(data).map(mapTransaction);
   }, [token]);
 
   const createTransaction = React.useCallback((data: any) => apiCall('/transactions/', { method: 'POST', body: JSON.stringify(data) }), [token]);
@@ -323,7 +384,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Account methods
   const fetchAccounts = React.useCallback(async () => {
     const data = await apiCall('/accounts/');
-    return (data || []).map(mapAccount);
+    return normalizeCollectionResponse(data).map(mapAccount);
   }, [token]);
 
   const createAccount = React.useCallback((data: any) => apiCall('/accounts/', { method: 'POST', body: JSON.stringify(data) }), [token]);
@@ -333,17 +394,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Budget methods
   const fetchBudgets = React.useCallback(async () => {
     const data = await apiCall('/budgets/');
-    return (data || []).map(mapBudget);
+    return normalizeCollectionResponse(data).map(mapBudget);
   }, [token]);
 
   const createBudget = React.useCallback((data: any) => apiCall('/budgets/', { method: 'POST', body: JSON.stringify(data) }), [token]);
   const updateBudget = React.useCallback((id: string, data: any) => apiCall(`/budgets/${id}/`, { method: 'PUT', body: JSON.stringify(data) }), [token]);
   const deleteBudget = React.useCallback((id: string) => apiCall(`/budgets/${id}/`, { method: 'DELETE' }), [token]);
+  const fetchSharedBudgets = React.useCallback(async () => {
+    const data = await apiCall('/shared-budgets/');
+    return normalizeCollectionResponse(data) as SharedBudget[];
+  }, [token]);
+  const createSharedBudget = React.useCallback(
+    (data: any) =>
+      apiCall('/shared-budgets/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }) as Promise<SharedBudget>,
+    [token]
+  );
+  const updateSharedBudget = React.useCallback(
+    (id: number, data: any) =>
+      apiCall(`/shared-budgets/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }) as Promise<SharedBudget>,
+    [token]
+  );
+  const deleteSharedBudget = React.useCallback(
+    async (id: number) => {
+      await apiCall(`/shared-budgets/${id}/`, {
+        method: 'DELETE',
+      });
+    },
+    [token]
+  );
 
   // Goals methods
   const fetchGoals = React.useCallback(async () => {
     const data = await apiCall('/savings-goals/');
-    return (data || []).map(mapGoal);
+    return normalizeCollectionResponse(data).map(mapGoal);
   }, [token]);
 
   const createGoal = React.useCallback((data: any) => apiCall('/savings-goals/', { method: 'POST', body: JSON.stringify(data) }), [token]);
@@ -351,7 +440,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const deleteGoal = React.useCallback((id: string) => apiCall(`/savings-goals/${id}/`, { method: 'DELETE' }), [token]);
 
   // Category methods
-  const fetchCategories = React.useCallback(() => apiCall('/categories/'), [token]);
+  const fetchCategories = React.useCallback(async () => {
+    const data = await apiCall('/categories/');
+    return normalizeCollectionResponse(data);
+  }, [token]);
   const createCategory = React.useCallback((data: any) => apiCall('/categories/', { method: 'POST', body: JSON.stringify(data) }), [token]);
 
   // Dashboard data methods
@@ -359,8 +451,154 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchMonthlyExpenses = React.useCallback(() => apiCall('/analytics/monthly-expenses/'), [token]);
   const fetchCategoryData = React.useCallback(() => apiCall('/analytics/category-distribution/'), [token]);
 
-  const fetchDebts = React.useCallback(() => apiCall('/debts/'), [token]);
-  const fetchNotifications = React.useCallback(() => apiCall('/notifications/'), [token]);
+  const fetchDebts = React.useCallback(async () => {
+    const data = await apiCall('/debt-trackers/');
+    return normalizeCollectionResponse(data);
+  }, [token]);
+
+  const fetchNotifications = React.useCallback(async () => {
+    const data = await apiCall('/notifications/');
+    return normalizeCollectionResponse(data);
+  }, [token]);
+
+  const updateCurrentUser = React.useCallback(async (data: Partial<User>) => {
+    const updatedUser = await apiCall('/users/profile/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    setUserAndSyncSegment(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    return updatedUser;
+  }, [token]);
+
+  const fetchHouseholds = React.useCallback(async () => {
+    const data = await apiCall('/households/');
+    return normalizeCollectionResponse(data) as Household[];
+  }, [token]);
+
+  const createHousehold = React.useCallback(
+    (data: { name: string; description?: string; currency?: string }) =>
+      apiCall('/households/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }) as Promise<Household>,
+    [token]
+  );
+
+  const updateHousehold = React.useCallback(
+    (id: number, data: Partial<{ name: string; description: string; currency: string }>) =>
+      apiCall(`/households/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }) as Promise<Household>,
+    [token]
+  );
+
+  const fetchHouseholdMembers = React.useCallback(
+    async (householdId: number) => {
+      const data = await apiCall(`/households/${householdId}/members/`);
+      return normalizeCollectionResponse(data) as HouseholdMember[];
+    },
+    [token]
+  );
+
+  const addHouseholdMember = React.useCallback(
+    async (householdId: number, data: { email: string; role?: HouseholdRole }) => {
+      const response = await apiCall(`/households/${householdId}/members/`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return response.member as HouseholdMember;
+    },
+    [token]
+  );
+
+  const updateHouseholdMember = React.useCallback(
+    (householdId: number, memberId: number, data: Partial<{ role: HouseholdRole; is_active: boolean }>) =>
+      apiCall(`/households/${householdId}/members/${memberId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }) as Promise<HouseholdMember>,
+    [token]
+  );
+
+  const removeHouseholdMember = React.useCallback(
+    async (householdId: number, memberId: number) => {
+      await apiCall(`/households/${householdId}/members/${memberId}/`, {
+        method: 'DELETE',
+      });
+    },
+    [token]
+  );
+
+  const fetchBankIntegrationStatus = React.useCallback(
+    () => apiCall('/integrations/banking/status/'),
+    [token]
+  );
+
+  const createBankLinkSession = React.useCallback(
+    (payload: { redirect_uri?: string; state?: string } = {}) =>
+      apiCall('/integrations/banking/link-session/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    [token]
+  );
+
+  const processBankConnectionCallback = React.useCallback(
+    (payload: {
+      external_connection_id: string;
+      provider?: string;
+      institution_name?: string;
+      status?: 'pending' | 'connected' | 'action_required' | 'disconnected' | 'error';
+      metadata?: Record<string, any>;
+      accounts?: Array<{
+        external_account_id: string;
+        name: string;
+        account_type: 'checking' | 'savings' | 'credit' | 'investment' | 'cash' | 'other';
+        currency?: string;
+        balance?: string;
+        account_number?: string;
+      }>;
+    }) =>
+      apiCall('/integrations/banking/callback/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    [token]
+  );
+
+  const syncBankConnectionTransactions = React.useCallback(
+    (payload: {
+      connection_id: number;
+      transactions: Array<{
+        id: string;
+        account_external_id?: string;
+        account_name?: string;
+        amount: string;
+        description?: string;
+        date?: string;
+        payee?: string;
+        status?: 'pending' | 'cleared' | 'reconciled';
+        notes?: string;
+      }>;
+    }) =>
+      apiCall('/integrations/banking/sync/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    [token]
+  );
+
+  const syncBankConnectionFromProvider = React.useCallback(
+    (payload: { connection_id: number }) =>
+      apiCall('/integrations/banking/sync-from-provider/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    [token]
+  );
 
   // Initialize auth state
   useEffect(() => {
@@ -376,7 +614,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.log('Found stored auth data for user:', parsedUser);
 
           setToken(storedToken);
-          setUser(parsedUser);
+          setUserAndSyncSegment(parsedUser);
         } catch (error) {
           console.error('Error parsing stored user data:', error);
           clearAuthData();
@@ -412,6 +650,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     createBudget,
     updateBudget,
     deleteBudget,
+    fetchSharedBudgets,
+    createSharedBudget,
+    updateSharedBudget,
+    deleteSharedBudget,
     fetchGoals,
     createGoal,
     updateGoal,
@@ -423,6 +665,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     fetchCategoryData,
     fetchDebts,
     fetchNotifications,
+    updateCurrentUser,
+    fetchHouseholds,
+    createHousehold,
+    updateHousehold,
+    fetchHouseholdMembers,
+    addHouseholdMember,
+    updateHouseholdMember,
+    removeHouseholdMember,
+    fetchBankIntegrationStatus,
+    createBankLinkSession,
+    processBankConnectionCallback,
+    syncBankConnectionTransactions,
+    syncBankConnectionFromProvider,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -44,7 +44,7 @@ const Header: React.FC = () => {
   const closeMenu = () => setIsMenuOpen(false);
 
   // Check if current route is authenticated route
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+  const isAuthPage = location.pathname.startsWith('/login') || location.pathname.startsWith('/signup');
   const isLandingPage = location.pathname === '/';
 
   // Handle scroll events to change header style

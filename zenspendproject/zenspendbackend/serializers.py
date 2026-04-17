@@ -16,7 +16,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('email', 'first_name', 'last_name', 'phone_number', 
-                 'preferred_currency', 'password', 'password_confirm')
+                 'preferred_currency', 'user_segment', 'password', 'password_confirm')
         extra_kwargs = {
             'password': {'write_only': True},
         }
@@ -53,6 +53,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['id'] = user.id
         token['preferred_currency'] = user.preferred_currency
         token['phone_number'] = user.phone_number
+        token['user_segment'] = user.user_segment
         return token
 
     def validate(self, attrs):
@@ -102,6 +103,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                 'last_name': user.last_name,
                 'phone_number': user.phone_number,
                 'preferred_currency': user.preferred_currency,
+                'user_segment': user.user_segment,
                 'id': user.id,
                 
             }
@@ -114,8 +116,75 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'profile_pic',
                   'phone_number', 'is_active', 'created_at', 'preferred_currency',
-                  'notification_preferences']
+                  'user_segment', 'notification_preferences']
         read_only_fields = ['id', 'created_at', 'is_active']
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    user_segment = serializers.ChoiceField(
+        choices=[choice[0] for choice in User.USER_SEGMENT_CHOICES],
+        required=False,
+    )
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError('Les mots de passe ne correspondent pas.')
+        return attrs
+
+
+class HouseholdMemberSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_full_name = serializers.CharField(source='user.full_name', read_only=True)
+
+    class Meta:
+        model = HouseholdMember
+        fields = ['id', 'user', 'user_email', 'user_full_name', 'role', 'is_active', 'joined_at']
+        read_only_fields = ['id', 'joined_at', 'user_email', 'user_full_name']
+
+
+class HouseholdSerializer(serializers.ModelSerializer):
+    owner_email = serializers.EmailField(source='owner.email', read_only=True)
+    members_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Household
+        fields = [
+            'id',
+            'name',
+            'description',
+            'owner',
+            'owner_email',
+            'currency',
+            'members_count',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'owner', 'owner_email', 'members_count', 'created_at', 'updated_at']
+
+    def get_members_count(self, obj):
+        return obj.memberships.filter(is_active=True).count()
+
+
+class HouseholdMemberCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=HouseholdMember.ROLE_CHOICES, default=HouseholdMember.ROLE_CHILD)
+
+    def validate_email(self, value):
+        user = User.objects.filter(email=value).first()
+        if user is None:
+            raise serializers.ValidationError("Aucun utilisateur trouvé avec cet email.")
+        self.context['member_user'] = user
+        return value
+
+    def get_member_user(self):
+        return self.context['member_user']
 
 class BankAccountSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
@@ -283,15 +352,115 @@ class DebtTrackerSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class SharedBudgetSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    members = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    household = serializers.PrimaryKeyRelatedField(queryset=Household.objects.all())
+    household_name = serializers.CharField(source='household.name', read_only=True)
+    members = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all(), required=False)
     categories = serializers.PrimaryKeyRelatedField(many=True, queryset=Category.objects.all())
 
     class Meta:
         model = SharedBudget
-        fields = ['id', 'name', 'owner', 'members', 'amount', 'start_date',
+        fields = ['id', 'name', 'owner', 'household', 'household_name', 'members', 'amount', 'start_date',
                   'end_date', 'categories', 'current_amount']
         read_only_fields = ['id', 'current_amount']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        acting_user = request.user if request else None
+
+        household = attrs.get('household') or getattr(self.instance, 'household', None)
+        if household is None:
+            raise serializers.ValidationError({
+                'household': 'Un budget partage doit etre rattache a un foyer.'
+            })
+
+        if acting_user is not None:
+            can_access_household = (
+                household.owner_id == acting_user.id
+                or HouseholdMember.objects.filter(
+                    household=household,
+                    user=acting_user,
+                    is_active=True,
+                ).exists()
+            )
+
+            if not can_access_household:
+                raise serializers.ValidationError({
+                    'household': 'Vous ne pouvez pas utiliser ce foyer.'
+                })
+
+            can_manage_household = (
+                household.owner_id == acting_user.id
+                or HouseholdMember.objects.filter(
+                    household=household,
+                    user=acting_user,
+                    is_active=True,
+                    role__in=[
+                        HouseholdMember.ROLE_OWNER,
+                        HouseholdMember.ROLE_PARENT,
+                        HouseholdMember.ROLE_PARTNER,
+                    ],
+                ).exists()
+            )
+
+            if not can_manage_household:
+                raise serializers.ValidationError({
+                    'household': 'Vous devez etre manager du foyer pour creer ou modifier un budget partage.'
+                })
+
+        household_member_ids = set(
+            HouseholdMember.objects.filter(household=household, is_active=True).values_list('user_id', flat=True)
+        )
+        household_member_ids.add(household.owner_id)
+
+        members = attrs.get('members')
+        if members is None and self.instance is not None:
+            members = list(self.instance.members.all())
+        if members is None:
+            members = []
+
+        invalid_member_ids = [member.id for member in members if member.id not in household_member_ids]
+        if invalid_member_ids:
+            raise serializers.ValidationError({
+                'members': f'Tous les membres doivent appartenir au foyer actif. IDs invalides: {invalid_member_ids}'
+            })
+
+        owner = attrs.get('owner') or getattr(self.instance, 'owner', acting_user)
+        if owner and owner.id not in household_member_ids:
+            raise serializers.ValidationError({
+                'owner': 'Le proprietaire du budget doit appartenir au foyer.'
+            })
+
+        return attrs
+
+    def create(self, validated_data):
+        members = validated_data.pop('members', [])
+        categories = validated_data.pop('categories', [])
+
+        budget = SharedBudget.objects.create(**validated_data)
+        budget.categories.set(categories)
+        budget.members.set(members)
+
+        if budget.owner_id and not budget.members.filter(id=budget.owner_id).exists():
+            budget.members.add(budget.owner)
+
+        return budget
+
+    def update(self, instance, validated_data):
+        members = validated_data.pop('members', None)
+        categories = validated_data.pop('categories', None)
+
+        instance = super().update(instance, validated_data)
+
+        if members is not None:
+            instance.members.set(members)
+        if categories is not None:
+            instance.categories.set(categories)
+
+        if instance.owner_id and not instance.members.filter(id=instance.owner_id).exists():
+            instance.members.add(instance.owner)
+
+        return instance
 
 class DebtRecordSerializer(serializers.ModelSerializer):
     creditor = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())

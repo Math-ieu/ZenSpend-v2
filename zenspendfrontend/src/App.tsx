@@ -9,10 +9,14 @@ import PrivateRoute from './components/PrivateRoute';
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import SSOCallback from './pages/auth/SSOCallback';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import NotFound from './pages/NotFound';
 
 // Protected Pages 
 import Dashboard from './pages/Dashboard';
+import SegmentDashboardRedirect from './pages/dashboard/SegmentDashboardRedirect';
 import TransactionsPage from './pages/transactions/TransactionsPage';
 import NewTransactionPage from './pages/transactions/NewTransactionPage';
 import BudgetsPage from './pages/budgets/BudgetsPage';
@@ -43,7 +47,14 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/login/:segmentSlug" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/signup/:segmentSlug" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/forgot-password/:segmentSlug" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/reset-password/:segmentSlug" element={<ResetPassword />} />
+                <Route path="/auth/sso/callback" element={<SSOCallback />} />
               </Route>
 
               {/* Protected Routes */}
@@ -52,7 +63,8 @@ function App() {
                   <AppLayout requireAuth />
                 </PrivateRoute>
               }>
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard" element={<SegmentDashboardRedirect />} />
+                <Route path="/dashboard/:segmentSlug" element={<Dashboard />} />
                 <Route path="/transactions" element={<TransactionsPage />} />
                 <Route path="/transactions/new" element={<NewTransactionPage />} />
                 <Route path="/budgets" element={<BudgetsPage />} />

@@ -123,11 +123,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     >
       {({ values, errors, touched, isSubmitting, setFieldValue }) => (
         <Form className="space-y-6">
-          <Card>
+          <Card className="max-h-[65vh] flex flex-col">
             <CardHeader>
               <CardTitle>Informations principales</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 overflow-y-auto pr-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="amount" className="label">Montant</label>
@@ -218,11 +218,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="max-h-[65vh] flex flex-col">
             <CardHeader>
               <CardTitle>Détails additionnels</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 overflow-y-auto pr-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label flex items-center space-x-2">

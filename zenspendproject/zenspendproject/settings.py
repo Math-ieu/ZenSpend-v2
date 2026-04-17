@@ -247,6 +247,39 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
+FRONTEND_RESET_PASSWORD_URL = os.environ.get(
+    'FRONTEND_RESET_PASSWORD_URL',
+    'http://localhost:5173/reset-password',
+)
+PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = int(
+    os.environ.get('PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS', '3600')
+)
+PASSWORD_RESET_EXPOSE_LINK = os.environ.get(
+    'PASSWORD_RESET_EXPOSE_LINK',
+    'true' if DEBUG else 'false',
+).lower() in ('1', 'true', 'yes', 'on')
+PASSWORD_RESET_EMAIL_SUBJECT = os.environ.get(
+    'PASSWORD_RESET_EMAIL_SUBJECT',
+    'ZenSpend - Reinitialisation de mot de passe',
+)
+PASSWORD_RESET_EMAIL_PROVIDER = os.environ.get(
+    'PASSWORD_RESET_EMAIL_PROVIDER',
+    'resend',
+).strip().lower()
+PASSWORD_RESET_EMAIL_ALLOW_FALLBACK = os.environ.get(
+    'PASSWORD_RESET_EMAIL_ALLOW_FALLBACK',
+    'true',
+).lower() in ('1', 'true', 'yes', 'on')
+
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend',
+)
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@zenspend.local')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', DEFAULT_FROM_EMAIL)
+RESEND_REPLY_TO = os.environ.get('RESEND_REPLY_TO', '')
+
 # Logging pour debug CORS (optionnel)
 LOGGING = {
     'version': 1,

@@ -1,7 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle, CreditCard, PieChart, BarChart3, Target, Shield, User } from 'lucide-react';
+import { ArrowRight, CheckCircle, CreditCard, PieChart, BarChart3, Target, Shield, User, HeartHandshake, Rocket, Users } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { USER_SEGMENT_OPTIONS, UserSegmentOption } from '../hooks/useUserSegment';
+import { getLoginPathForSegment, getSignupPathForSegment } from '../lib/segmentRouting';
+
+const segmentIconByValue: Record<UserSegmentOption['value'], React.ReactNode> = {
+  couples: <HeartHandshake className="h-6 w-6 text-primary" />,
+  young_professionals: <Rocket className="h-6 w-6 text-primary" />,
+  families: <Users className="h-6 w-6 text-primary" />,
+};
 
 const Home: React.FC = () => {
   return (
@@ -38,6 +46,50 @@ const Home: React.FC = () => {
                 className="w-full h-auto rounded-lg shadow-xl"
               />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Segment Experiences */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Des espaces distincts selon votre profil</h2>
+            <p className="text-lg text-muted max-w-3xl mx-auto">
+              Choisissez votre espace pour acceder a un tableau de bord et une authentification adaptes a votre contexte.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {USER_SEGMENT_OPTIONS.map((segment) => (
+              <div key={segment.value} className="bg-surface rounded-xl p-6 border border-border/60 shadow-sm">
+                <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  {segmentIconByValue[segment.value]}
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">{segment.label}</h3>
+                <p className="text-sm text-muted mb-4">{segment.subtitle}</p>
+                <ul className="space-y-2 mb-6">
+                  {segment.highlights.map((item) => (
+                    <li key={item} className="text-sm text-foreground flex items-start">
+                      <CheckCircle className="h-4 w-4 text-success mr-2 mt-0.5 flex-shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="space-y-2">
+                  <Link to={getSignupPathForSegment(segment.value)}>
+                    <Button variant="outline" className="w-full justify-center">
+                      Creer un compte {segment.label}
+                    </Button>
+                  </Link>
+                  <Link to={getLoginPathForSegment(segment.value)}>
+                    <Button variant="ghost" className="w-full justify-center">
+                      Se connecter ({segment.label})
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { Link} from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { isUserSegment, useUserSegment, USER_SEGMENT_OPTIONS } from '../../hooks/useUserSegment';
+import { getLoginPathForSegment, getSignupPathForSegment, parseSegmentRouteSlug } from '../../lib/segmentRouting';
 
 const Signup: React.FC = () => {
+  const { segmentSlug } = useParams<{ segmentSlug?: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState(''); 
@@ -15,8 +20,33 @@ const Signup: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { segment, setSegment } = useUserSegment();
+  const routeSegment = parseSegmentRouteSlug(segmentSlug);
   
   const { signup } = useAuth();
+  const loginPath = getLoginPathForSegment(segment);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const segmentFromQuery = params.get('segment');
+
+    if (routeSegment) {
+      if (routeSegment !== segment) {
+        setSegment(routeSegment);
+      }
+      return;
+    }
+
+    if (isUserSegment(segmentFromQuery)) {
+      if (segmentFromQuery !== segment) {
+        setSegment(segmentFromQuery);
+      }
+      navigate(getSignupPathForSegment(segmentFromQuery), { replace: true });
+      return;
+    }
+
+    navigate(getSignupPathForSegment(segment), { replace: true });
+  }, [routeSegment, location.search, navigate, segment, setSegment]);
   
   
   const validatePassword = (password: string) => {
@@ -31,6 +61,11 @@ const Signup: React.FC = () => {
   const passwordChecks = validatePassword(password);
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const doPasswordsMatch = password === confirmPassword;
+
+  const handleSegmentSelect = (nextSegment: typeof segment) => {
+    setSegment(nextSegment);
+    navigate(getSignupPathForSegment(nextSegment), { replace: true });
+  };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,22 +81,29 @@ const Signup: React.FC = () => {
     }
     
     setIsLoading(true);
-    
-    
-      // Adapter les données pour correspondre au serializer Django
+
+    try {
       const userData = {
         first_name: firstName,
         last_name: lastName,
         email: email,
         phone_number: phoneNumber,
         preferred_currency: preferredCurrency,
+        user_segment: segment,
         password: password,
-        password_confirm: confirmPassword
+        password_confirm: confirmPassword,
       };
-      
+
       await signup(userData);
-     
-    
+      toast.success('Inscription reussie. Connectez-vous pour continuer.');
+      navigate(loginPath, {
+        replace: true,
+      });
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de l inscription.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -76,8 +118,11 @@ const Signup: React.FC = () => {
           Créez votre compte
         </h2>
         <p className="mt-2 text-center text-sm text-muted">
+          Espace actif: <span className="font-medium text-foreground">{USER_SEGMENT_OPTIONS.find((option) => option.value === segment)?.label}</span>
+        </p>
+        <p className="mt-2 text-center text-sm text-muted">
           Ou{' '}
-          <Link to="/login" className="font-medium text-primary hover:text-primary-dark">
+          <Link to={loginPath} className="font-medium text-primary hover:text-primary-dark">
             connectez-vous à votre compte existant
           </Link>
         </p>
@@ -194,6 +239,30 @@ const Signup: React.FC = () => {
                   <option value="JPY">Yen japonais (JPY)</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="segment" className="label">
+                Espace
+              </label>
+              <div className="mt-1">
+                <select
+                  id="segment"
+                  name="segment"
+                  value={segment}
+                  onChange={(e) => handleSegmentSelect(e.target.value as typeof segment)}
+                  className="input"
+                >
+                  {USER_SEGMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                Cet espace personnalise votre experience: budgets partages, acceleration de l epargne ou pilotage familial multi-profils.
+              </p>
             </div>
 
             <div>

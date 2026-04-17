@@ -23,7 +23,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ requireAuth = false, hideFooter =
   }
   
   // Redirect if user is authenticated and trying to access auth pages
-  if (isAuthenticated && (location.pathname === '/login' || location.pathname === '/signup')) {
+  if (isAuthenticated && (location.pathname.startsWith('/login') || location.pathname.startsWith('/signup'))) {
     return <Navigate to="/dashboard" replace />;
   }
   
