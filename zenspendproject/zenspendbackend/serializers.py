@@ -195,6 +195,18 @@ class BankAccountSerializer(serializers.ModelSerializer):
                   'user', 'institution', 'is_active', 'last_sync', 'connection_details']
         read_only_fields = ['id', 'balance', 'last_sync']
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from_cur = instance.currency or 'EUR'
+            if 'balance' in ret and ret['balance'] is not None:
+                from zenspendbackend.services.currency import convert_currency
+                ret['balance'] = convert_currency(float(ret['balance']), from_cur, target_cur)
+            ret['currency'] = target_cur
+        return ret
+
 class CategorySerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True)
     parent_category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), allow_null=True)
@@ -277,6 +289,21 @@ class TransactionSerializer(serializers.ModelSerializer):
             instance.tags.set(tags)
         return instance
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from_cur = instance.original_currency
+            if not from_cur and instance.account:
+                from_cur = instance.account.currency
+            if not from_cur:
+                from_cur = 'EUR'
+            if 'amount' in ret and ret['amount'] is not None:
+                from zenspendbackend.services.currency import convert_currency
+                ret['amount'] = convert_currency(float(ret['amount']), from_cur, target_cur)
+        return ret
+
 class TransactionRuleSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     assign_category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), allow_null=True)
@@ -330,6 +357,18 @@ class BudgetSerializer(serializers.ModelSerializer):
                 RecurringSchedule.objects.create(budget=instance, **schedule_data)
         return instance
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from zenspendbackend.services.currency import convert_currency
+            if 'amount' in ret and ret['amount'] is not None:
+                ret['amount'] = convert_currency(float(ret['amount']), 'EUR', target_cur)
+            if 'current_amount' in ret and ret['current_amount'] is not None:
+                ret['current_amount'] = convert_currency(float(ret['current_amount']), 'EUR', target_cur)
+        return ret
+
 class SavingsGoalSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     account = serializers.PrimaryKeyRelatedField(queryset=BankAccount.objects.all(), allow_null=True)
@@ -341,6 +380,17 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
                   'auto_save_frequency', 'notes', 'percentage_complete']
         read_only_fields = ['id', 'current_amount', 'percentage_complete']
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from zenspendbackend.services.currency import convert_currency
+            for field in ['target_amount', 'current_amount', 'auto_save_amount']:
+                if field in ret and ret[field] is not None:
+                    ret[field] = convert_currency(float(ret[field]), 'EUR', target_cur)
+        return ret
+
 class DebtTrackerSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     account = serializers.PrimaryKeyRelatedField(queryset=BankAccount.objects.all(), allow_null=True)
@@ -350,6 +400,17 @@ class DebtTrackerSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'total_amount', 'remaining_amount', 'interest_rate',
                   'minimum_payment', 'payment_due_date', 'lender', 'user', 'account']
         read_only_fields = ['id']
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from zenspendbackend.services.currency import convert_currency
+            for field in ['total_amount', 'remaining_amount', 'minimum_payment']:
+                if field in ret and ret[field] is not None:
+                    ret[field] = convert_currency(float(ret[field]), 'EUR', target_cur)
+        return ret
 
 class SharedBudgetSerializer(serializers.ModelSerializer):
     owner = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -462,6 +523,19 @@ class SharedBudgetSerializer(serializers.ModelSerializer):
 
         return instance
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from_cur = instance.household.currency if (instance.household and instance.household.currency) else 'EUR'
+            from zenspendbackend.services.currency import convert_currency
+            if 'amount' in ret and ret['amount'] is not None:
+                ret['amount'] = convert_currency(float(ret['amount']), from_cur, target_cur)
+            if 'current_amount' in ret and ret['current_amount'] is not None:
+                ret['current_amount'] = convert_currency(float(ret['current_amount']), from_cur, target_cur)
+        return ret
+
 class DebtRecordSerializer(serializers.ModelSerializer):
     creditor = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     debtor = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
@@ -472,6 +546,16 @@ class DebtRecordSerializer(serializers.ModelSerializer):
         fields = ['id', 'creditor', 'debtor', 'amount', 'description', 'date_created',
                   'due_date', 'is_settled', 'settled_date', 'related_transaction']
         read_only_fields = ['id', 'date_created', 'settled_date']
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            target_cur = request.user.preferred_currency or 'EUR'
+            from zenspendbackend.services.currency import convert_currency
+            if 'amount' in ret and ret['amount'] is not None:
+                ret['amount'] = convert_currency(float(ret['amount']), 'EUR', target_cur)
+        return ret
 
 class NotificationSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())

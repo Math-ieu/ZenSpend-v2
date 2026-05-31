@@ -1,12 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Target, TrendingUp, Calculator } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import SavingsGoalCard from '../../components/dashboard/SavingsGoalCard';
+import Modal from '../../components/ui/Modal';
+import GoalForm from '../../components/forms/GoalForm';
 import { savingsGoals } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
+import toast from 'react-hot-toast';
 
 const GoalsPage: React.FC = () => {
+  const { currency } = useCurrency();
+  const { createGoal } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFormDirty, setIsFormDirty] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isModalOpen) {
+      setIsFormDirty(false);
+    }
+  }, [isModalOpen]);
+
+  const handleCreateGoalSubmit = async (values: any) => {
+    try {
+      const goalData = {
+        name: values.name,
+        target_amount: values.targetAmount,
+        current_amount: values.initialAmount,
+        target_date: values.targetDate.toISOString(),
+        automatic_saving: values.automaticSaving,
+        saving_frequency: values.savingFrequency || null,
+        saving_amount: values.savingAmount || null,
+        notes: values.notes || ''
+      };
+
+      await createGoal(goalData);
+      toast.success('Objectif créé avec succès !');
+      setIsModalOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de la création de l\'objectif');
+      throw error;
+    }
+  };
+
   // Calculate total savings progress
   const totalTargetAmount = savingsGoals.reduce((sum, goal) => sum + goal.targetAmount, 0);
   const totalCurrentAmount = savingsGoals.reduce((sum, goal) => sum + goal.currentAmount, 0);
@@ -23,7 +61,7 @@ const GoalsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Objectifs d'épargne</h1>
             <p className="text-muted">Suivez et atteignez vos objectifs financiers</p>
           </div>
-          <Button leftIcon={<Plus size={16} />}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>
             Nouvel objectif
           </Button>
         </div>
@@ -143,7 +181,7 @@ const GoalsPage: React.FC = () => {
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Analyser mes objectifs
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => setIsModalOpen(true)}>
                     <Target className="h-4 w-4 mr-2" />
                     Définir un nouvel objectif
                   </Button>
@@ -153,6 +191,19 @@ const GoalsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title="Nouvel Objectif d'Épargne"
+        shouldConfirmClose={isFormDirty}
+      >
+        <GoalForm 
+          onSubmit={handleCreateGoalSubmit}
+          onCancel={() => setIsModalOpen(false)}
+          onDirtyChange={setIsFormDirty}
+        />
+      </Modal>
     </div>
   );
 };

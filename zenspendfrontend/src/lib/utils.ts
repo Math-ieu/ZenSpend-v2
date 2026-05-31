@@ -5,12 +5,42 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = 'EUR') {
+// Global reactive bridge object for active currency and exchange rates
+export const globalCurrencyState = {
+  currency: 'EUR',
+  rates: {
+    EUR: 1.0,
+    USD: 1.09,
+    GBP: 0.84,
+    CAD: 1.48,
+    JPY: 170.8,
+    CHF: 0.98,
+  } as Record<string, number>,
+  setCurrency(cur: string) {
+    this.currency = cur;
+  },
+  setRates(newRates: Record<string, number>) {
+    this.rates = newRates;
+  }
+};
+
+export function formatCurrency(amount: number, currencyOverride?: string) {
+  const activeCurrency = currencyOverride || globalCurrencyState.currency || 'EUR';
+  const numAmount = Number(amount || 0);
+
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency,
-  }).format(amount);
+    currency: activeCurrency,
+  }).format(numAmount);
 }
+
+export function convertCurrency(amount: number, fromCurrency: string, toCurrency: string): number {
+  const rates = globalCurrencyState.rates;
+  const numAmount = Number(amount || 0);
+  const amountInEUR = numAmount / (rates[fromCurrency] || rates['EUR'] || 1.0);
+  return amountInEUR * (rates[toCurrency] || rates['EUR'] || 1.0);
+}
+
 
 export function formatDate(date: Date | string) {
   const d = typeof date === 'string' ? new Date(date) : date;

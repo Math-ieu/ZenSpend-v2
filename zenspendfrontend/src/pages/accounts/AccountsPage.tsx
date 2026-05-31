@@ -1,15 +1,19 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, TrendingUp, CreditCard, Wallet, Link2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import AccountCard, { AddAccountCard } from '../../components/dashboard/AccountCard';
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
+import Modal from '../../components/ui/Modal';
+import AccountForm from '../../components/forms/AccountForm';
 import { formatCurrency } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const AccountsPage: React.FC = () => {
+  const { currency } = useCurrency();
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -20,16 +24,46 @@ const AccountsPage: React.FC = () => {
     createBankLinkSession,
     processBankConnectionCallback,
     syncBankConnectionFromProvider,
+    createAccount,
   } = useAuth();
 
-  const [accounts, setAccounts] = React.useState<any[]>([]);
-  const [monthlyExpenses, setMonthlyExpenses] = React.useState<any[]>([]);
-  const [transactions, setTransactions] = React.useState<any[]>([]);
-  const [bankIntegration, setBankIntegration] = React.useState<any>(null);
-  const [isConnectingBank, setIsConnectingBank] = React.useState(false);
-  const [isProcessingBankCallback, setIsProcessingBankCallback] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [bankIntegration, setBankIntegration] = useState<any>(null);
+  const [isConnectingBank, setIsConnectingBank] = useState(false);
+  const [isProcessingBankCallback, setIsProcessingBankCallback] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const callbackHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setIsFormDirty(false);
+    }
+  }, [isModalOpen]);
+
+  const handleCreateAccountSubmit = async (values: any) => {
+    try {
+      const accountData = {
+        name: values.name,
+        account_type: values.type,
+        balance: values.balance,
+        currency: values.currency,
+        account_number: values.accountNumber,
+        institution: values.institution,
+      };
+
+      await createAccount(accountData);
+      toast.success('Compte créé avec succès !');
+      setIsModalOpen(false);
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de la création du compte');
+      throw error;
+    }
+  };
 
   const handleSyncAccounts = async () => {
     try {
@@ -165,8 +199,8 @@ const AccountsPage: React.FC = () => {
     return <div className="py-8 text-center">Chargement...</div>;
   }
 
-  // Calculate total balance across all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
+  // Calculate total balance across all accounts (returned already converted by backend)
+  const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
 
   // Get recent transactions
   const recentTransactions = transactions.slice(0, 5);
@@ -177,9 +211,9 @@ const AccountsPage: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Comptes</h1>
-            <p className="text-muted">Gérez vos comptes bancaires</p>
+            <p className="text-muted">Gerez vos comptes bancaires</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/accounts/new')}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>
             Ajouter un compte
           </Button>
         </div>
@@ -211,7 +245,9 @@ const AccountsPage: React.FC = () => {
                 <div>
                   <CardTitle className="text-base">Comptes courants</CardTitle>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(accounts.filter(a => a.type === 'checking').reduce((sum, a) => sum + a.balance, 0))}
+                    {formatCurrency(
+                      accounts.filter(a => a.type === 'checking').reduce((sum, a) => sum + Number(a.balance || 0), 0)
+                    )}
                   </p>
                 </div>
               </div>
@@ -225,9 +261,11 @@ const AccountsPage: React.FC = () => {
                   <CreditCard size={20} />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Épargne totale</CardTitle>
+                  <CardTitle className="text-base">Epargne totale</CardTitle>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(accounts.filter(a => a.type === 'savings').reduce((sum, a) => sum + a.balance, 0))}
+                    {formatCurrency(
+                      accounts.filter(a => a.type === 'savings').reduce((sum, a) => sum + Number(a.balance || 0), 0)
+                    )}
                   </p>
                 </div>
               </div>
@@ -243,7 +281,7 @@ const AccountsPage: React.FC = () => {
               {accounts.map(account => (
                 <AccountCard key={account.id} account={account} />
               ))}
-              <AddAccountCard onClick={() => navigate('/accounts/new')} />
+              <AddAccountCard onClick={() => setIsModalOpen(true)} />
             </div>
 
             {/* Balance Evolution */}
@@ -317,6 +355,19 @@ const AccountsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title="Nouveau Compte Bancaire"
+        shouldConfirmClose={isFormDirty}
+      >
+        <AccountForm 
+          onSubmit={handleCreateAccountSubmit}
+          onCancel={() => setIsModalOpen(false)}
+          onDirtyChange={setIsFormDirty}
+        />
+      </Modal>
     </div>
   );
 };

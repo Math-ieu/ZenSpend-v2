@@ -58,6 +58,7 @@ export interface Budget {
   name: string;
   amount: number;
   spent: number;
+  current_amount?: number;
   category: string;
   period: 'monthly' | 'weekly' | 'yearly';
   startDate: string;

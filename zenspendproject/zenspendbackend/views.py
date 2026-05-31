@@ -951,33 +951,42 @@ class DashboardSummaryView(APIView):
 
     def get(self, request):
         user = request.user
+        target_cur = user.preferred_currency or 'EUR'
+        from zenspendbackend.services.currency import convert_currency
         
-        # Calculate total balance across all accounts
-        total_balance = BankAccount.objects.filter(user=user, is_active=True).aggregate(
-            total=Sum('balance')
-        )['total'] or 0
+        # Calculate total balance across all accounts after conversion
+        total_balance = 0.0
+        accounts = BankAccount.objects.filter(user=user, is_active=True)
+        for acc in accounts:
+            converted_bal = convert_currency(acc.balance, acc.currency or 'EUR', target_cur)
+            total_balance += converted_bal
 
         # Current month income and expenses
         today = datetime.now()
         start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        monthly_income = Transaction.objects.filter(
-            user=user, 
-            date__gte=start_of_month,
-            amount__gt=0
-        ).aggregate(total=Sum('amount'))['total'] or 0
-
-        monthly_expenses = Transaction.objects.filter(
-            user=user, 
-            date__gte=start_of_month,
-            amount__lt=0
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        monthly_income = 0.0
+        monthly_expenses = 0.0
+        
+        transactions = Transaction.objects.filter(user=user, date__gte=start_of_month).select_related('account')
+        for tx in transactions:
+            tx_cur = tx.original_currency
+            if not tx_cur and tx.account:
+                tx_cur = tx.account.currency
+            if not tx_cur:
+                tx_cur = 'EUR'
+            
+            converted_amount = convert_currency(tx.amount, tx_cur, target_cur)
+            if converted_amount > 0:
+                monthly_income += converted_amount
+            else:
+                monthly_expenses += converted_amount
 
         return Response({
             'totalBalance': float(total_balance),
             'monthlyIncome': float(monthly_income),
             'monthlyExpenses': abs(float(monthly_expenses)),
-            'currency': user.preferred_currency or 'EUR'
+            'currency': target_cur
         })
 
 
@@ -986,9 +995,11 @@ class AnalyticsMonthlyExpensesView(APIView):
 
     def get(self, request):
         user = request.user
+        target_cur = user.preferred_currency or 'EUR'
+        from zenspendbackend.services.currency import convert_currency
+        
         # Last 6 months
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=180)
         
         # Simple grouping by month
         data = []
@@ -996,26 +1007,34 @@ class AnalyticsMonthlyExpensesView(APIView):
             month_date = end_date - timedelta(days=i*30)
             month_name = month_date.strftime('%b')
             
-            month_start = month_date.replace(day=1)
-            next_month = (month_start + timedelta(days=32)).replace(day=1)
+            month_start = month_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            next_month = (month_start + timedelta(days=32)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             
-            expenses = abs(Transaction.objects.filter(
-                user=user, 
+            monthly_txs = Transaction.objects.filter(
+                user=user,
                 date__gte=month_start,
-                date__lt=next_month,
-                amount__lt=0
-            ).aggregate(total=Sum('amount'))['total'] or 0)
+                date__lt=next_month
+            ).select_related('account')
             
-            income = Transaction.objects.filter(
-                user=user, 
-                date__gte=month_start,
-                date__lt=next_month,
-                amount__gt=0
-            ).aggregate(total=Sum('amount'))['total'] or 0
+            expenses = 0.0
+            income = 0.0
+            
+            for tx in monthly_txs:
+                tx_cur = tx.original_currency
+                if not tx_cur and tx.account:
+                    tx_cur = tx.account.currency
+                if not tx_cur:
+                    tx_cur = 'EUR'
+                
+                converted_amount = convert_currency(tx.amount, tx_cur, target_cur)
+                if converted_amount > 0:
+                    income += converted_amount
+                else:
+                    expenses += converted_amount
             
             data.append({
                 'month': month_name,
-                'expenses': float(expenses),
+                'expenses': float(abs(expenses)),
                 'income': float(income)
             })
             
@@ -1027,27 +1046,47 @@ class AnalyticsCategoryDistributionView(APIView):
 
     def get(self, request):
         user = request.user
+        target_cur = user.preferred_currency or 'EUR'
+        from zenspendbackend.services.currency import convert_currency
+        
         # Expenses by category for current month
         today = datetime.now()
         start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        category_data = Transaction.objects.filter(
+        transactions = Transaction.objects.filter(
             user=user,
             date__gte=start_of_month,
             amount__lt=0
-        ).values('category__name', 'category__color').annotate(
-            total=Sum('amount'),
-            count=Count('id')
-        )
+        ).select_related('category', 'account')
         
+        categories_map = {}
+        for tx in transactions:
+            cat_name = tx.category.name if tx.category else 'Sans catégorie'
+            cat_color = tx.category.color if tx.category else '#CBD5E1'
+            
+            tx_cur = tx.original_currency
+            if not tx_cur and tx.account:
+                tx_cur = tx.account.currency
+            if not tx_cur:
+                tx_cur = 'EUR'
+            
+            converted_amount = convert_currency(tx.amount, tx_cur, target_cur)
+            
+            if cat_name not in categories_map:
+                categories_map[cat_name] = {
+                    'total': 0.0,
+                    'color': cat_color
+                }
+            categories_map[cat_name]['total'] += abs(converted_amount)
+            
         labels = []
         data = []
         colors = []
         
-        for item in category_data:
-            labels.append(item['category__name'] or 'Sans catégorie')
-            data.append(abs(float(item['total'] or 0)))
-            colors.append(item['category__color'] or '#CBD5E1')
+        for cat_name, val in categories_map.items():
+            labels.append(cat_name)
+            data.append(float(val['total']))
+            colors.append(val['color'])
             
         return Response({
             'labels': labels,

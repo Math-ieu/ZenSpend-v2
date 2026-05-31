@@ -3,10 +3,12 @@ import { Plus, MinusCircle, PlusCircle, Info, Calendar } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatCurrency } from '../../lib/utils';
 import { toast } from 'react-hot-toast';
 
 const DebtPage: React.FC = () => {
+    const { currency } = useCurrency();
     const { fetchDebts } = useAuth();
     const [debts, setDebts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);

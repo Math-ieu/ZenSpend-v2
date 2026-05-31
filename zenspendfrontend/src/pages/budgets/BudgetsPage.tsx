@@ -9,8 +9,13 @@ import { formatCurrency } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserSegment } from '../../hooks/useUserSegment';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import toast from 'react-hot-toast';
 import { Household, HouseholdMember, HouseholdRole, SharedBudget } from '../../types';
+
+
+import Modal from '../../components/ui/Modal';
+import BudgetForm from '../../components/forms/BudgetForm';
 
 const MANAGER_ROLES: HouseholdRole[] = ['owner', 'parent', 'partner'];
 
@@ -23,8 +28,10 @@ const toIsoStartDate = (date: string) => `${date}T00:00:00Z`;
 const toIsoEndDate = (date: string) => `${date}T23:59:59Z`;
 
 const BudgetsPage: React.FC = () => {
+  const { currency } = useCurrency();
   const {
     user,
+    fetchBudgets,
     fetchSharedBudgets,
     createSharedBudget,
     updateSharedBudget,
@@ -32,9 +39,49 @@ const BudgetsPage: React.FC = () => {
     fetchHouseholds,
     fetchHouseholdMembers,
     fetchCategories,
+    createBudget,
+    fetchTransactions,
   } = useAuth();
   const { segment } = useUserSegment();
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setIsFormDirty(false);
+    }
+  }, [isModalOpen]);
+
+  const historicalAverages = useMemo(() => {
+    const totals: Record<string, number> = {};
+    const counts: Record<string, number> = {};
+    transactions.forEach(t => {
+      if (t.type === 'expense' && t.category) {
+        totals[t.category] = (totals[t.category] || 0) + parseFloat(t.amount);
+        counts[t.category] = (counts[t.category] || 0) + 1;
+      }
+    });
+    const averages: Record<string, number> = {};
+    Object.keys(totals).forEach(cat => {
+      averages[cat] = totals[cat] / Math.max(1, counts[cat]);
+    });
+    const defaults: Record<string, number> = {
+      'Alimentation': 120.00,
+      'Transport': 45.00,
+      'Logement': 650.00,
+      'Loisirs': 60.00,
+      'Santé': 30.00,
+      'Factures': 85.00,
+      'Abonnements': 15.00,
+      'Autres': 50.00
+    };
+    return { ...defaults, ...averages };
+  }, [transactions]);
+
+  const [localBudgets, setLocalBudgets] = useState<any[]>([]);
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
   const [sharedBudgets, setSharedBudgets] = useState<SharedBudget[]>([]);
   const [isLoadingSharedBudgets, setIsLoadingSharedBudgets] = useState(false);
   const [isSavingSharedBudget, setIsSavingSharedBudget] = useState(false);
@@ -57,15 +104,94 @@ const BudgetsPage: React.FC = () => {
   const [isLoadingFamilyConfig, setIsLoadingFamilyConfig] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
+  const categoryOptions = useMemo(() => {
+    return categories.map((cat) => ({
+      value: String(cat.id),
+      label: cat.name,
+    }));
+  }, [categories]);
+
+  const loadBudgets = useCallback(async () => {
+    try {
+      setIsLoadingBudgets(true);
+      const data = await fetchBudgets();
+      setLocalBudgets(data || []);
+    } catch (error) {
+      console.error('Failed to load budgets', error);
+    } finally {
+      setIsLoadingBudgets(false);
+    }
+  }, [fetchBudgets]);
+
+  const handleCreateBudgetSubmit = async (values: any) => {
+    try {
+      const budgetData = {
+        name: values.name,
+        amount: values.amount,
+        start_date: values.startDate.toISOString(),
+        end_date: values.endDate.toISOString(),
+        category: values.category,
+        alert_threshold: values.alertThreshold,
+        is_recurring: values.isRecurring
+      };
+
+      await createBudget(budgetData);
+      toast.success('Budget créé avec succès !');
+      setIsModalOpen(false);
+      await loadBudgets();
+      if (segment === 'families') {
+        await loadSharedBudgets();
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de la création du budget');
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    const loadCategoriesOnly = async () => {
+      try {
+        const fetchedCategories = await fetchCategories();
+        const normalizedCategories = (fetchedCategories || [])
+          .map((item: any) => ({
+            id: Number(item?.id),
+            name: String(item?.name || 'Categorie'),
+          }))
+          .filter((item: CategoryOption) => Number.isInteger(item.id) && item.id > 0);
+        setCategories(normalizedCategories);
+      } catch (error) {
+        console.error('Failed to load categories', error);
+      }
+    };
+    const loadTransactions = async () => {
+      try {
+        const fetchedTransactions = await fetchTransactions();
+        setTransactions(fetchedTransactions || []);
+      } catch (error) {
+        console.error('Failed to load transactions', error);
+      }
+    };
+    loadCategoriesOnly();
+    loadTransactions();
+    loadBudgets();
+  }, [fetchCategories, fetchTransactions, loadBudgets]);
+
+  const activeBudgets = localBudgets.length > 0 ? localBudgets : budgets;
+
   // Calculate total budget and spent amounts
-  const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
-  const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent, 0);
+  const totalBudget = activeBudgets.reduce((sum, budget) => sum + (Number(budget.amount) || 0), 0);
+  const totalSpent = activeBudgets.reduce((sum, budget) => {
+    const spentVal = Number(budget.current_amount !== undefined ? budget.current_amount : budget.spent || 0);
+    return sum + spentVal;
+  }, 0);
   const remainingBudget = totalBudget - totalSpent;
   const navigate = useNavigate();
 
   // Find budgets that are close to or exceeding their limits
-  const warningBudgets = budgets.filter((budget) => {
-    const percentage = (budget.spent / budget.amount) * 100;
+  const warningBudgets = activeBudgets.filter((budget) => {
+    const spentVal = Number(budget.current_amount !== undefined ? budget.current_amount : budget.spent || 0);
+    const amountVal = Number(budget.amount || 0);
+    const percentage = amountVal > 0 ? (spentVal / amountVal) * 100 : 0;
     return percentage >= 80;
   });
 
@@ -351,7 +477,7 @@ const BudgetsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Budgets</h1>
             <p className="text-muted">Gerez vos budgets mensuels</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => navigate('/budgets/new')}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>
             Nouveau budget
           </Button>
         </div>
@@ -366,7 +492,7 @@ const BudgetsPage: React.FC = () => {
                 </div>
                 <div>
                   <CardTitle className="text-base">Budget total</CardTitle>
-                  <p className="text-2xl font-bold text-foreground">{totalBudget.toFixed(2)} EUR</p>
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
                 </div>
               </div>
             </CardHeader>
@@ -380,7 +506,7 @@ const BudgetsPage: React.FC = () => {
                 </div>
                 <div>
                   <CardTitle className="text-base">Depense</CardTitle>
-                  <p className="text-2xl font-bold text-error">{totalSpent.toFixed(2)} EUR</p>
+                  <p className="text-2xl font-bold text-error">{formatCurrency(totalSpent)}</p>
                 </div>
               </div>
             </CardHeader>
@@ -394,7 +520,7 @@ const BudgetsPage: React.FC = () => {
                 </div>
                 <div>
                   <CardTitle className="text-base">Restant</CardTitle>
-                  <p className="text-2xl font-bold text-success">{remainingBudget.toFixed(2)} EUR</p>
+                  <p className="text-2xl font-bold text-success">{formatCurrency(remainingBudget)}</p>
                 </div>
               </div>
             </CardHeader>
@@ -551,11 +677,11 @@ const BudgetsPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                     <div className="rounded-md border border-border/60 p-3">
                       <p className="text-xs uppercase tracking-wide text-muted">Total partage</p>
-                      <p className="text-xl font-bold text-foreground mt-1">{sharedTotal.toFixed(2)} EUR</p>
+                      <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(sharedTotal)}</p>
                     </div>
                     <div className="rounded-md border border-border/60 p-3">
                       <p className="text-xs uppercase tracking-wide text-muted">Depense partagee</p>
-                      <p className="text-xl font-bold text-foreground mt-1">{sharedSpent.toFixed(2)} EUR</p>
+                      <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(sharedSpent)}</p>
                     </div>
                   </div>
 
@@ -636,7 +762,7 @@ const BudgetsPage: React.FC = () => {
           {/* Budgets List */}
           <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {budgets.map((budget) => (
+              {activeBudgets.map((budget) => (
                 <BudgetCard key={budget.id} budget={budget} />
               ))}
             </div>
@@ -681,6 +807,21 @@ const BudgetsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title="Nouveau Budget"
+        shouldConfirmClose={isFormDirty}
+      >
+        <BudgetForm 
+          onSubmit={handleCreateBudgetSubmit}
+          onCancel={() => setIsModalOpen(false)}
+          categoryOptions={categoryOptions}
+          onDirtyChange={setIsFormDirty}
+          historicalAverages={historicalAverages}
+        />
+      </Modal>
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { SubscriptionPlan } from '../../types/subscription';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatCurrency } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
   onPlanSelect,
   showCurrentPlan = true 
 }) => {
+  const { currency } = useCurrency();
   const { availablePlans, subscribeToPlan, currentPlan, isLoading, setPendingPlanId } = useSubscription();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();

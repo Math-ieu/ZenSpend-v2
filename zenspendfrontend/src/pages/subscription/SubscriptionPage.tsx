@@ -5,10 +5,12 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import SubscriptionPlans from '../../components/subscription/SubscriptionPlans';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatCurrency } from '../../lib/utils';
 
 
 const SubscriptionPage: React.FC = () => {
+  const { currency } = useCurrency();
   const { 
     subscription, 
     currentPlan, 
