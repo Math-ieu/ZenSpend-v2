@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { Plus, Search, ArrowUpDown } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, Upload } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import TransactionsList from '../../components/dashboard/TransactionsList';
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
 import Modal from '../../components/ui/Modal';
 import TransactionForm from '../../components/forms/TransactionForm';
-import { formatCurrency } from '../../lib/utils';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const TransactionsPage: React.FC = () => {
+  // Subscribe to the active currency so amounts re-render on currency change.
   const { currency } = useCurrency();
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
@@ -140,9 +142,14 @@ const TransactionsPage: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Transactions</h1>
             <p className="text-muted">Gérez et analysez vos transactions</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>
-            Nouvelle transaction
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" leftIcon={<Upload size={16} />} onClick={() => navigate('/transactions/import')}>
+              Importer
+            </Button>
+            <Button leftIcon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>
+              Nouvelle transaction
+            </Button>
+          </div>
         </div>
 
         {/* Filters Section */}

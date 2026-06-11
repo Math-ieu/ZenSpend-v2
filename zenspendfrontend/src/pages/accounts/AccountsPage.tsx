@@ -6,14 +6,17 @@ import AccountCard, { AddAccountCard } from '../../components/dashboard/AccountC
 import ExpenseChart from '../../components/dashboard/ExpenseChart';
 import Modal from '../../components/ui/Modal';
 import AccountForm from '../../components/forms/AccountForm';
-import { formatCurrency } from '../../lib/utils';
-import { useAuth } from '../../contexts/AuthContext';
+import { SkeletonCard } from '../../components/ui/Skeleton';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const AccountsPage: React.FC = () => {
+  // Subscribe to the active currency so amounts re-render on currency change.
   const { currency } = useCurrency();
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -196,7 +199,21 @@ const AccountsPage: React.FC = () => {
   ]);
 
   if (isLoading) {
-    return <div className="py-8 text-center">Chargement...</div>;
+    return (
+      <div className="py-8">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Calculate total balance across all accounts (returned already converted by backend)

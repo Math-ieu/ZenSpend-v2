@@ -10,9 +10,9 @@ interface AppLayoutProps {
 }
 
 const AppLayout: React.FC<AppLayoutProps> = ({ requireAuth = false, hideFooter = false }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, onboardingCompleted } = useAuth();
   const location = useLocation();
-  
+
   // Show loading state
   if (isLoading) {
     return (
@@ -21,10 +21,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({ requireAuth = false, hideFooter =
       </div>
     );
   }
-  
+
   // Redirect if user is authenticated and trying to access auth pages
   if (isAuthenticated && (location.pathname.startsWith('/login') || location.pathname.startsWith('/signup'))) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // First-run onboarding gate: send authenticated users who have not completed
+  // onboarding to the onboarding flow (once preferences are known).
+  if (
+    requireAuth &&
+    isAuthenticated &&
+    onboardingCompleted === false &&
+    location.pathname !== '/onboarding'
+  ) {
+    return <Navigate to="/onboarding" replace />;
   }
   
   return (

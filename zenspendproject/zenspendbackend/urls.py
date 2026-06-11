@@ -23,8 +23,11 @@ urlpatterns = [
     path('auth/password-reset/request/', PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     
-    # Inscription et gestion de compte 
-    path('auth/register/', UserRegistrationView.as_view(), name='register'), 
+    # Inscription et gestion de compte
+    path('auth/register/', UserRegistrationView.as_view(), name='register'),
+
+    # ==================== CONTACT ====================
+    path('contact/', views.ContactView.as_view(), name='contact'),
 
     # ==================== USER ENDPOINTS ====================
     path('users/', views.UserListView.as_view(), name='user-list'),
@@ -86,6 +89,7 @@ urlpatterns = [
     
     # ==================== IMPORT SESSION ENDPOINTS ====================
     path('import-sessions/', views.ImportSessionListCreateView.as_view(), name='import-session-list-create'),
+    path('import-sessions/upload/', views.ImportSessionUploadView.as_view(), name='import-session-upload'),
     path('import-sessions/<int:pk>/', views.ImportSessionDetailView.as_view(), name='import-session-detail'),
     
     # ==================== ACHIEVEMENT ENDPOINTS ====================

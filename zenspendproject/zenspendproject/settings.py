@@ -23,16 +23,43 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / '.env')
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def env_bool(name, default=False):
+    """Read a boolean from the environment ("1", "true", "yes", "on")."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def env_list(name, default=None):
+    """Read a comma-separated list from the environment."""
+    value = os.environ.get(name)
+    if not value:
+        return list(default or [])
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool('DEBUG', default=True)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+# SECURITY WARNING: keep the secret key used in production secret!
+# A fallback is provided for local development only; production MUST set SECRET_KEY.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-change-me'
+    else:
+        raise RuntimeError(
+            'SECRET_KEY environment variable must be set when DEBUG is False.'
+        )
+
+ALLOWED_HOSTS = env_list(
+    'ALLOWED_HOSTS',
+    default=['localhost', '127.0.0.1', '0.0.0.0'],
+)
 
 # Application definition
 
@@ -89,24 +116,26 @@ WSGI_APPLICATION = 'zenspendproject.wsgi.application'
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Default to SQLite for local development. Set DATABASE_ENGINE=postgres (and the
+# DATABASE_* variables) to use PostgreSQL in staging/production.
+if os.environ.get('DATABASE_ENGINE', 'sqlite').lower() in ('postgres', 'postgresql'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DATABASE_NAME', 'zenspend_db'),
+            'USER': os.environ.get('DATABASE_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DATABASE_PASSWORD', ''),
+            'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
+            'PORT': os.environ.get('DATABASE_PORT', '5432'),
+        }
     }
-}
-"""
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DATABASE_NAME'),
-        'USER': os.environ.get('DATABASE_USER'),
-        'PASSWORD': os.environ.get('DATABASE_PASSWORD'),
-        'HOST': os.environ.get('DATABASE_HOST'),
-        'PORT': os.environ.get('DATABASE_PORT', '5432'),
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
-"""
 
 
 # Password validation
@@ -165,16 +194,25 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.FormParser',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'contact': '5/hour',
+    },
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # URL par défaut de Vite
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",  # Au cas où vous utilisez React avec CRA
-    "http://127.0.0.1:3000",
-]
+# Origins are env-driven (comma-separated CORS_ALLOWED_ORIGINS) with dev defaults.
+CORS_ALLOWED_ORIGINS = env_list(
+    'CORS_ALLOWED_ORIGINS',
+    default=[
+        "http://localhost:5173",  # URL par défaut de Vite
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",  # Au cas où vous utilisez React avec CRA
+        "http://127.0.0.1:3000",
+    ],
+)
 
 # Alternative: pour le développement, vous pouvez autoriser toutes les origines
 # ATTENTION: Ne pas utiliser en production !
@@ -276,6 +314,8 @@ EMAIL_BACKEND = os.environ.get(
     'django.core.mail.backends.console.EmailBackend',
 )
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@zenspend.local')
+# Inbox that receives contact-form submissions.
+CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', DEFAULT_FROM_EMAIL)
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', DEFAULT_FROM_EMAIL)
 RESEND_REPLY_TO = os.environ.get('RESEND_REPLY_TO', '')
@@ -292,9 +332,21 @@ LOGGING = {
     'loggers': {
         'corsheaders': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'DEBUG' if DEBUG else 'WARNING',
             'propagate': True,
         },
     },
 }
+
+# Production hardening — only enforced when DEBUG is off.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS', default=CORS_ALLOWED_ORIGINS)
 

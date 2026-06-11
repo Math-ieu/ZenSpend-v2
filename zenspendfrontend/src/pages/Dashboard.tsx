@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { 
-  Plus, Wallet, Clock, CalendarClock, ArrowUpCircle, ArrowDownCircle, 
-  Link2, RefreshCw, HeartHandshake, Rocket, Users, UserPlus, 
-  TrendingUp, ShieldCheck, CheckCircle2, ChevronRight, Activity, CreditCard,
-  Calendar, AlertTriangle
+import {
+  Plus, Wallet, Clock, CalendarClock, ArrowUpCircle, ArrowDownCircle,
+  Link2, RefreshCw, HeartHandshake, Rocket, Users, UserPlus,
+  TrendingUp, ShieldCheck, CheckCircle2, Activity
 } from 'lucide-react';
 
 import Button from '../components/ui/Button';
-import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import AccountCard, { AddAccountCard } from '../components/dashboard/AccountCard';
 import BudgetCard from '../components/dashboard/BudgetCard';
 import SavingsGoalCard from '../components/dashboard/SavingsGoalCard';
@@ -21,7 +19,7 @@ import TransactionForm from '../components/forms/TransactionForm';
 import AccountForm from '../components/forms/AccountForm';
 import BudgetForm from '../components/forms/BudgetForm';
 import GoalForm from '../components/forms/GoalForm';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency as formatCurrencyUtil } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -34,7 +32,10 @@ import { getDashboardPathForSegment, parseSegmentRouteSlug } from '../lib/segmen
 
 
 const Dashboard: React.FC = () => {
+  // Subscribe to the active currency so amounts re-render on currency change.
   const { currency } = useCurrency();
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
+
   const navigate = useNavigate();
   const location = useLocation();
   const { segmentSlug } = useParams<{ segmentSlug?: string }>();

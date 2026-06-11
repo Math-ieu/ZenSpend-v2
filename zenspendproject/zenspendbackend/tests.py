@@ -574,3 +574,190 @@ class PasswordResetApiTests(APITestCase):
 		)
 		self.assertEqual(reuse_response.status_code, status.HTTP_400_BAD_REQUEST)
 		self.assertEqual(reuse_response.data['status'], 'error')
+
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from .models import Budget, SavingsGoal, Notification, TransactionRule
+
+
+class TransactionIsolationApiTests(APITestCase):
+	"""Security: a user must never access another user's data."""
+
+	def setUp(self):
+		self.alice = User.objects.create_user(email='alice@zenspend.local', password='StrongPass123!')
+		self.bob = User.objects.create_user(email='bob@zenspend.local', password='StrongPass123!')
+		self.bob_tx = Transaction.objects.create(user=self.bob, amount='10.00', description='Bob secret')
+
+	def test_user_cannot_list_other_users_transactions(self):
+		self.client.force_authenticate(user=self.alice)
+		response = self.client.get(reverse('transaction-list-create'))
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		results = response.data.get('results', response.data)
+		ids = [t['id'] for t in results]
+		self.assertNotIn(self.bob_tx.id, ids)
+
+	def test_user_cannot_retrieve_other_users_transaction(self):
+		self.client.force_authenticate(user=self.alice)
+		response = self.client.get(reverse('transaction-detail', kwargs={'pk': self.bob_tx.id}))
+		self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+	def test_user_cannot_delete_other_users_transaction(self):
+		self.client.force_authenticate(user=self.alice)
+		response = self.client.delete(reverse('transaction-detail', kwargs={'pk': self.bob_tx.id}))
+		self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+		self.assertTrue(Transaction.objects.filter(id=self.bob_tx.id).exists())
+
+	def test_unauthenticated_access_is_rejected(self):
+		response = self.client.get(reverse('transaction-list-create'))
+		self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AutoCategorizationApiTests(APITestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(email='cat@zenspend.local', password='StrongPass123!')
+		self.category = Category.objects.create(name='Courses', user=self.user, is_expense=True)
+		TransactionRule.objects.create(
+			name='Supermarche',
+			user=self.user,
+			keywords=['carrefour', 'auchan'],
+			assign_category=self.category,
+			is_active=True,
+		)
+		self.client.force_authenticate(user=self.user)
+
+	def test_matching_transaction_gets_category_assigned(self):
+		response = self.client.post(
+			reverse('transaction-list-create'),
+			{'amount': '42.50', 'description': 'Achat CARREFOUR City'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		tx = Transaction.objects.get(user=self.user, description='Achat CARREFOUR City')
+		self.assertEqual(tx.category_id, self.category.id)
+
+	def test_non_matching_transaction_has_no_category(self):
+		response = self.client.post(
+			reverse('transaction-list-create'),
+			{'amount': '10.00', 'description': 'Restaurant'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		tx = Transaction.objects.get(user=self.user, description='Restaurant')
+		self.assertIsNone(tx.category_id)
+
+
+class CsvImportApiTests(APITestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(email='csv@zenspend.local', password='StrongPass123!')
+		self.client.force_authenticate(user=self.user)
+
+	def test_csv_upload_creates_and_dedupes(self):
+		csv_content = (
+			b'Date;Libelle;Montant\n'
+			b'2026-01-05;CARREFOUR;-42,50\n'
+			b'2026-01-06;Salaire;1 800,00\n'
+			b'2026-01-05;CARREFOUR;-42,50\n'
+		)
+		upload = SimpleUploadedFile('releve.csv', csv_content, content_type='text/csv')
+		response = self.client.post(
+			reverse('import-session-upload'),
+			{'file': upload},
+			format='multipart',
+		)
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(response.data['created'], 2)
+		self.assertEqual(response.data['duplicates'], 1)
+		self.assertEqual(Transaction.objects.filter(user=self.user).count(), 2)
+
+	def test_upload_without_file_returns_400(self):
+		response = self.client.post(reverse('import-session-upload'), {}, format='multipart')
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class NotificationGenerationApiTests(APITestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(email='notif@zenspend.local', password='StrongPass123!')
+		self.client.force_authenticate(user=self.user)
+
+	def test_budget_alert_created_when_threshold_exceeded(self):
+		Budget.objects.create(
+			user=self.user, name='Courses', amount='100.00',
+			current_amount='95.00', alert_threshold='80.00',
+		)
+		# Creating a transaction triggers the opportunistic notification check.
+		self.client.post(
+			reverse('transaction-list-create'),
+			{'amount': '5.00', 'description': 'Trigger'},
+			format='json',
+		)
+		self.assertTrue(
+			Notification.objects.filter(user=self.user, type='budget_alert').exists()
+		)
+
+	def test_goal_reached_notification_created(self):
+		SavingsGoal.objects.create(
+			user=self.user, name='Vacances', target_amount='500.00', current_amount='500.00',
+		)
+		self.client.post(
+			reverse('transaction-list-create'),
+			{'amount': '5.00', 'description': 'Trigger'},
+			format='json',
+		)
+		self.assertTrue(
+			Notification.objects.filter(user=self.user, type='goal_reached').exists()
+		)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class ContactApiTests(APITestCase):
+	def test_contact_endpoint_sends_email(self):
+		response = self.client.post(
+			reverse('contact'),
+			{
+				'name': 'Visiteur',
+				'email': 'visiteur@example.com',
+				'subject': 'Bonjour',
+				'message': 'Question sur ZenSpend',
+			},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn('Bonjour', mail.outbox[0].subject)
+
+	def test_contact_endpoint_validates_email(self):
+		response = self.client.post(
+			reverse('contact'),
+			{'name': 'X', 'email': 'not-an-email', 'subject': 'S', 'message': 'M'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class RecurringTransactionTests(APITestCase):
+	def test_due_schedule_generates_and_advances(self):
+		from datetime import timedelta
+		from django.utils import timezone
+		from .models import RecurringSchedule
+		from .services.recurring import generate_due_recurring_transactions
+
+		user = User.objects.create_user(email='rec@zenspend.local', password='StrongPass123!')
+		template = Transaction.objects.create(
+			user=user, amount='9.99', description='Abonnement',
+			date=timezone.now() - timedelta(days=40),
+		)
+		schedule = RecurringSchedule.objects.create(
+			transaction=template,
+			frequency='monthly',
+			start_date=timezone.now() - timedelta(days=40),
+			next_occurrence=timezone.now() - timedelta(days=35),
+		)
+
+		created = generate_due_recurring_transactions()
+		schedule.refresh_from_db()
+
+		self.assertGreaterEqual(created, 1)
+		self.assertGreater(schedule.next_occurrence, timezone.now())
+		# Idempotent: running again generates nothing.
+		self.assertEqual(generate_due_recurring_transactions(), 0)

@@ -72,8 +72,9 @@ export const persistUserSegment = (segment: string | null | undefined) => {
     return;
   }
 
-  if (isUserSegment(segment ?? null)) {
-    window.localStorage.setItem(USER_SEGMENT_STORAGE_KEY, segment);
+  const normalized = segment ?? null;
+  if (isUserSegment(normalized)) {
+    window.localStorage.setItem(USER_SEGMENT_STORAGE_KEY, normalized);
   }
 };
 

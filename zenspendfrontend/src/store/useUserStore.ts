@@ -26,7 +26,7 @@ interface UserState {
 }
 
 // Deprecated: Use AuthContext instead
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>(() => ({
   user: null,
   isAuthenticated: false,
   isLoading: false,

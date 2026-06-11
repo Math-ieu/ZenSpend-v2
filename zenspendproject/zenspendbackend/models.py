@@ -572,6 +572,7 @@ class UserPreference(models.Model):
         ('pdf', 'PDF'),
         ('excel', 'Excel'),
     ], default='excel')
+    onboarding_completed = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'user_preferences'

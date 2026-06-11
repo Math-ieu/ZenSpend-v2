@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle, CreditCard, PieChart, BarChart3, Target, Shield, User, HeartHandshake, Rocket, Users } from 'lucide-react';
+import { ArrowRight, CheckCircle, CreditCard, PieChart, BarChart3, Target, Shield, User, HeartHandshake, Rocket, Users, ChevronDown } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import { USER_SEGMENT_OPTIONS, UserSegmentOption } from '../hooks/useUserSegment';
 import { getLoginPathForSegment, getSignupPathForSegment } from '../lib/segmentRouting';
+import { API_BASE_URL } from '../lib/config';
 
 const segmentIconByValue: Record<UserSegmentOption['value'], React.ReactNode> = {
   couples: <HeartHandshake className="h-6 w-6 text-primary" />,
@@ -11,7 +13,56 @@ const segmentIconByValue: Record<UserSegmentOption['value'], React.ReactNode> = 
   families: <Users className="h-6 w-6 text-primary" />,
 };
 
+const FAQ_ITEMS = [
+  {
+    question: 'Est-ce que ZenSpend est gratuit ?',
+    answer:
+      "ZenSpend propose une version gratuite avec des fonctionnalités essentielles. Pour des fonctionnalités avancées comme les prévisions financières ou les rapports personnalisés, nous proposons un abonnement premium à partir de 4,99€ par mois.",
+  },
+  {
+    question: 'Mes données bancaires sont-elles sécurisées ?',
+    answer:
+      "Absolument. Nous utilisons un chiffrement de niveau bancaire (256-bit AES) et nous ne stockons jamais vos identifiants bancaires. Nous respectons également toutes les réglementations RGPD en vigueur.",
+  },
+  {
+    question: 'Comment importer mes transactions ?',
+    answer:
+      "ZenSpend vous permet d'importer vos transactions de plusieurs façons : importation de fichiers CSV, saisie manuelle, ou connexion bancaire sécurisée (à venir). Vous choisissez la méthode qui vous convient le mieux.",
+  },
+  {
+    question: 'Puis-je gérer plusieurs comptes ?',
+    answer:
+      "Oui, ZenSpend vous permet de gérer tous vos comptes bancaires, cartes de crédit, prêts et investissements au même endroit. Vous pouvez également suivre vos liquidités et autres actifs.",
+  },
+];
+
 const Home: React.FC = () => {
+  const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [isSendingContact, setIsSendingContact] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSendingContact(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/contact/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "Le message n'a pas pu être envoyé.");
+      }
+      toast.success(data.message || 'Message envoyé. Merci !');
+      setContactForm({ name: '', email: '', subject: '', message: '' });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Une erreur est survenue.");
+    } finally {
+      setIsSendingContact(false);
+    }
+  };
+
   return (
     <div className="bg-background">
       {/* Hero Section */}
@@ -56,7 +107,7 @@ const Home: React.FC = () => {
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Des espaces distincts selon votre profil</h2>
             <p className="text-lg text-muted max-w-3xl mx-auto">
-              Choisissez votre espace pour acceder a un tableau de bord et une authentification adaptes a votre contexte.
+              Choisissez votre espace pour accéder à un tableau de bord et une authentification adaptés à votre contexte.
             </p>
           </div>
 
@@ -79,7 +130,7 @@ const Home: React.FC = () => {
                 <div className="space-y-2">
                   <Link to={getSignupPathForSegment(segment.value)}>
                     <Button variant="outline" className="w-full justify-center">
-                      Creer un compte {segment.label}
+                      Créer un compte {segment.label}
                     </Button>
                   </Link>
                   <Link to={getLoginPathForSegment(segment.value)}>
@@ -252,38 +303,27 @@ const Home: React.FC = () => {
             </p>
           </div>
 
-          <div className="max-w-3xl mx-auto space-y-6">
-            {/* FAQ Item 1 */}
-            <div className="bg-background rounded-lg p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-foreground mb-2">Est-ce que ZenSpend est gratuit ?</h3>
-              <p className="text-muted">
-                ZenSpend propose une version gratuite avec des fonctionnalités essentielles. Pour des fonctionnalités avancées comme les prévisions financières ou les rapports personnalisés, nous proposons un abonnement premium à partir de 4,99€ par mois.
-              </p>
-            </div>
-
-            {/* FAQ Item 2 */}
-            <div className="bg-background rounded-lg p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-foreground mb-2">Mes données bancaires sont-elles sécurisées ?</h3>
-              <p className="text-muted">
-                Absolument. Nous utilisons un chiffrement de niveau bancaire (256-bit AES) et nous ne stockons jamais vos identifiants bancaires. Nous respectons également toutes les réglementations RGPD en vigueur.
-              </p>
-            </div>
-
-            {/* FAQ Item 3 */}
-            <div className="bg-background rounded-lg p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-foreground mb-2">Comment importer mes transactions ?</h3>
-              <p className="text-muted">
-                ZenSpend vous permet d'importer vos transactions de plusieurs façons : connexion sécurisée à votre banque (via des API sécurisées), importation de fichiers CSV/Excel, ou saisie manuelle. Vous choisissez la méthode qui vous convient le mieux.
-              </p>
-            </div>
-
-            {/* FAQ Item 4 */}
-            <div className="bg-background rounded-lg p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-foreground mb-2">Puis-je gérer plusieurs comptes ?</h3>
-              <p className="text-muted">
-                Oui, ZenSpend vous permet de gérer tous vos comptes bancaires, cartes de crédit, prêts et investissements au même endroit. Vous pouvez également suivre vos liquidités et autres actifs.
-              </p>
-            </div>
+          <div className="max-w-3xl mx-auto space-y-4">
+            {FAQ_ITEMS.map((item, index) => (
+              <div key={item.question} className="bg-background rounded-lg shadow-sm overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="w-full flex items-center justify-between p-6 text-left"
+                  aria-expanded={openFaq === index}
+                >
+                  <h3 className="text-lg font-semibold text-foreground pr-4">{item.question}</h3>
+                  <ChevronDown
+                    className={`h-5 w-5 text-muted flex-shrink-0 transition-transform ${
+                      openFaq === index ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {openFaq === index && (
+                  <p className="text-muted px-6 pb-6 -mt-2">{item.answer}</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -356,27 +396,59 @@ const Home: React.FC = () => {
               Des questions, des suggestions ou besoin d'aide ? Notre équipe est là pour vous.
             </p>
             
-            <form className="space-y-6">
+            <form className="space-y-6 text-left" onSubmit={handleContactSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="name" className="label">Nom</label>
-                  <input type="text" id="name" className="input" placeholder="Votre nom" />
+                  <input
+                    type="text"
+                    id="name"
+                    className="input"
+                    placeholder="Votre nom"
+                    required
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label htmlFor="email" className="label">Email</label>
-                  <input type="email" id="email" className="input" placeholder="votre@email.com" />
+                  <input
+                    type="email"
+                    id="email"
+                    className="input"
+                    placeholder="votre@email.com"
+                    required
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  />
                 </div>
               </div>
               <div>
                 <label htmlFor="subject" className="label">Sujet</label>
-                <input type="text" id="subject" className="input" placeholder="Comment pouvons-nous vous aider ?" />
+                <input
+                  type="text"
+                  id="subject"
+                  className="input"
+                  placeholder="Comment pouvons-nous vous aider ?"
+                  required
+                  value={contactForm.subject}
+                  onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
+                />
               </div>
               <div>
                 <label htmlFor="message" className="label">Message</label>
-                <textarea id="message" rows={4} className="input" placeholder="Votre message..."></textarea>
+                <textarea
+                  id="message"
+                  rows={4}
+                  className="input"
+                  placeholder="Votre message..."
+                  required
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                ></textarea>
               </div>
               <div>
-                <Button size="lg" variant="primary" className="w-full md:w-auto">
+                <Button type="submit" size="lg" variant="primary" className="w-full md:w-auto" isLoading={isSendingContact}>
                   Envoyer le message
                 </Button>
               </div>

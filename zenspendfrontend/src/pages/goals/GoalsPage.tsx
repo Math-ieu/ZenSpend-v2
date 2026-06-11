@@ -1,21 +1,42 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Target, TrendingUp, Calculator } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import SavingsGoalCard from '../../components/dashboard/SavingsGoalCard';
 import Modal from '../../components/ui/Modal';
 import GoalForm from '../../components/forms/GoalForm';
-import { savingsGoals } from '../../lib/mockData';
-import { formatCurrency } from '../../lib/utils';
+import EmptyState from '../../components/ui/EmptyState';
+import { SkeletonCard } from '../../components/ui/Skeleton';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import toast from 'react-hot-toast';
 
 const GoalsPage: React.FC = () => {
+  // Subscribe to the active currency so amounts re-render on currency change.
   const { currency } = useCurrency();
-  const { createGoal } = useAuth();
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
+  const { createGoal, fetchGoals } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFormDirty, setIsFormDirty] = React.useState(false);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadGoals = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchGoals();
+      setSavingsGoals(data || []);
+    } catch {
+      setSavingsGoals([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchGoals]);
+
+  useEffect(() => {
+    loadGoals();
+  }, [loadGoals]);
 
   React.useEffect(() => {
     if (!isModalOpen) {
@@ -39,6 +60,7 @@ const GoalsPage: React.FC = () => {
       await createGoal(goalData);
       toast.success('Objectif créé avec succès !');
       setIsModalOpen(false);
+      loadGoals();
     } catch (error: any) {
       toast.error(error?.message || 'Erreur lors de la création de l\'objectif');
       throw error;
@@ -121,11 +143,28 @@ const GoalsPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Goals List */}
           <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {savingsGoals.map(goal => (
-                <SavingsGoalCard key={goal.id} goal={goal} />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+            ) : savingsGoals.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon={Target}
+                  title="Aucun objectif d'épargne"
+                  description="Définissez votre premier objectif (vacances, épargne de précaution…) et suivez votre progression."
+                  actionLabel="Créer un objectif"
+                  onAction={() => setIsModalOpen(true)}
+                />
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {savingsGoals.map(goal => (
+                  <SavingsGoalCard key={goal.id} goal={goal} />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Suggestions and Tips */}

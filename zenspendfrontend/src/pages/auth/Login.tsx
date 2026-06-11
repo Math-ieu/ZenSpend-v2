@@ -12,6 +12,7 @@ import {
   getSignupPathForSegment,
   parseSegmentRouteSlug,
 } from '../../lib/segmentRouting';
+import { API_BASE_URL } from '../../lib/config';
 
 const GoogleLogo: React.FC = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -100,7 +101,6 @@ const Login: React.FC = () => {
   const signupPath = getSignupPathForSegment(segment);
   const forgotPasswordPath = getForgotPasswordPathForSegment(segment);
   const dashboardPath = getDashboardPathForSegment(segment);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
   const handleSegmentSelect = (nextSegment: typeof segment) => {
     setSegment(nextSegment);

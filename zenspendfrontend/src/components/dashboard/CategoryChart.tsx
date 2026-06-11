@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -95,7 +95,7 @@ const CategoryChart: React.FC<CategoryChartProps> = ({
     responsive: true,
     maintainAspectRatio: false,
     cutout: '78%',
-    onClick: (event: any, elements: any[]) => {
+    onClick: (_event: any, elements: any[]) => {
       if (elements && elements.length > 0 && chartRef.current) {
         const index = elements[0].index;
         const categoryName = chartRef.current.data.labels?.[index] as string;
@@ -117,7 +117,7 @@ const CategoryChart: React.FC<CategoryChartProps> = ({
           font: {
             family: "'Inter', system-ui, sans-serif",
             size: 11,
-            weight: 'semibold',
+            weight: 'bold',
           },
           generateLabels: function(chart) {
             const data = chart.data;

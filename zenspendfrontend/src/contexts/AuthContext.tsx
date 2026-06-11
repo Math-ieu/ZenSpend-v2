@@ -2,11 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Household, HouseholdMember, HouseholdRole, SharedBudget, User, UserSegment } from '../types';
 import { toast } from 'react-hot-toast';
 import { persistUserSegment } from '../hooks/useUserSegment';
-
-
-
-// API Configuration
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL } from '../lib/config';
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +29,7 @@ interface AuthContextType {
   createTransaction: (data: any) => Promise<any>;
   updateTransaction: (id: string, data: any) => Promise<any>;
   deleteTransaction: (id: string) => Promise<void>;
+  importTransactionsCsv: (file: File, accountId?: string | number) => Promise<any>;
 
   fetchAccounts: () => Promise<any[]>;
   createAccount: (data: any) => Promise<any>;
@@ -63,6 +60,10 @@ interface AuthContextType {
   fetchDebts: () => Promise<any[]>;
   fetchNotifications: () => Promise<any[]>;
   updateCurrentUser: (data: Partial<User>) => Promise<User>;
+
+  onboardingCompleted: boolean | null;
+  fetchUserPreferences: () => Promise<any>;
+  completeOnboarding: () => Promise<void>;
 
   fetchHouseholds: () => Promise<Household[]>;
   createHousehold: (data: { name: string; description?: string; currency?: string }) => Promise<Household>;
@@ -114,6 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   const isAuthenticated = !!token && !!user;
 
@@ -381,6 +383,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateTransaction = React.useCallback((id: string, data: any) => apiCall(`/transactions/${id}/`, { method: 'PUT', body: JSON.stringify(data) }), [token]);
   const deleteTransaction = React.useCallback((id: string) => apiCall(`/transactions/${id}/`, { method: 'DELETE' }), [token]);
 
+  // Upload a CSV file of transactions. Uses FormData directly (not apiCall)
+  // because multipart requests must not set a JSON Content-Type header.
+  const importTransactionsCsv = React.useCallback(async (file: File, accountId?: string | number) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (accountId !== undefined && accountId !== null && accountId !== '') {
+      formData.append('account', String(accountId));
+    }
+
+    const response = await fetch(`${API_BASE_URL}/import-sessions/upload/`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || "L'import a échoué.");
+    }
+    return data;
+  }, [token]);
+
+  // User preferences / onboarding
+  const fetchUserPreferences = React.useCallback(async () => {
+    const data = await apiCall('/user-preferences/');
+    if (data && typeof data.onboarding_completed === 'boolean') {
+      setOnboardingCompleted(data.onboarding_completed);
+    }
+    return data;
+  }, [token]);
+
+  const completeOnboarding = React.useCallback(async () => {
+    await apiCall('/user-preferences/', {
+      method: 'PATCH',
+      body: JSON.stringify({ onboarding_completed: true }),
+    });
+    setOnboardingCompleted(true);
+  }, [token]);
+
   // Account methods
   const fetchAccounts = React.useCallback(async () => {
     const data = await apiCall('/accounts/');
@@ -629,6 +670,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initAuth();
   }, []);
 
+  // Load onboarding status once the user is authenticated.
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUserPreferences().catch(() => setOnboardingCompleted(true));
+    } else {
+      setOnboardingCompleted(null);
+    }
+  }, [isAuthenticated]);
+
   const value: AuthContextType = {
     user,
     token,
@@ -642,6 +692,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     createTransaction,
     updateTransaction,
     deleteTransaction,
+    importTransactionsCsv,
+    onboardingCompleted,
+    fetchUserPreferences,
+    completeOnboarding,
     fetchAccounts,
     createAccount,
     updateAccount,

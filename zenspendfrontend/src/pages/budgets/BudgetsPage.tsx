@@ -5,11 +5,11 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import BudgetCard from '../../components/dashboard/BudgetCard';
 import CategoryChart from '../../components/dashboard/CategoryChart';
 import { budgets } from '../../lib/mockData';
-import { formatCurrency } from '../../lib/utils';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserSegment } from '../../hooks/useUserSegment';
-import { useCurrency } from '../../contexts/CurrencyContext';
 import toast from 'react-hot-toast';
 import { Household, HouseholdMember, HouseholdRole, SharedBudget } from '../../types';
 
@@ -28,7 +28,9 @@ const toIsoStartDate = (date: string) => `${date}T00:00:00Z`;
 const toIsoEndDate = (date: string) => `${date}T23:59:59Z`;
 
 const BudgetsPage: React.FC = () => {
+  // Subscribe to the active currency so amounts re-render on currency change.
   const { currency } = useCurrency();
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
   const {
     user,
     fetchBudgets,
@@ -81,7 +83,7 @@ const BudgetsPage: React.FC = () => {
   }, [transactions]);
 
   const [localBudgets, setLocalBudgets] = useState<any[]>([]);
-  const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
+  const [, setIsLoadingBudgets] = useState(true);
   const [sharedBudgets, setSharedBudgets] = useState<SharedBudget[]>([]);
   const [isLoadingSharedBudgets, setIsLoadingSharedBudgets] = useState(false);
   const [isSavingSharedBudget, setIsSavingSharedBudget] = useState(false);

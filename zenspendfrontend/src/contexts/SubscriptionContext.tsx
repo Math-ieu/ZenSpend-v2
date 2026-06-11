@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { UserSubscription, SubscriptionPlan, FeatureAccess, SubscriptionTier } from '../types/subscription';
 import { getFeatureAccess, getFreeFeatureAccess, SUBSCRIPTION_PLANS } from '../lib/subscriptionPlans';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../lib/config';
 import toast from 'react-hot-toast';
 
 interface SubscriptionContextType {
@@ -29,20 +30,6 @@ interface SubscriptionContextType {
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
-// Mock subscription data for user ID 1
-const mockSubscription: UserSubscription = {
-  id: 'sub-1',
-  userId: '1',
-  planId: 'premium',
-  status: 'active',
-  currentPeriodStart: '2025-01-01T00:00:00Z',
-  currentPeriodEnd: '2025-02-01T00:00:00Z',
-  cancelAtPeriodEnd: false,
-  stripeSubscriptionId: 'sub_mock_premium',
-  createdAt: '2025-01-01T00:00:00Z',
-  updatedAt: '2025-01-01T00:00:00Z'
-};
-
 export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, isAuthenticated, token } = useAuth();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
@@ -61,7 +48,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   // API helper function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}${endpoint}`;
+    const url = `${API_BASE_URL}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -81,20 +68,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     return await response.json();
   };
 
-  // Check if user ID is 1 for mock data
-  const shouldUseMockData = () => user?.id === '1';
-
   // Fetch user subscription
   const fetchSubscription = async () => {
     if (!isAuthenticated || !user) return;
 
     setIsLoading(true);
     try {
-      if (shouldUseMockData()) {
-        setSubscription(mockSubscription);
-        return;
-      }
-
       const data = await apiCall('/subscriptions/current/');
       setSubscription(data);
     } catch (error) {
@@ -116,20 +95,6 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     setIsLoading(true);
     try {
-      if (shouldUseMockData()) {
-        // Mock successful subscription
-        const newSubscription: UserSubscription = {
-          ...mockSubscription,
-          planId,
-          id: `sub-${Date.now()}`,
-          currentPeriodStart: new Date().toISOString(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        };
-        setSubscription(newSubscription);
-        toast.success('Abonnement activé avec succès !');
-        return;
-      }
-
       const data = await apiCall('/subscriptions/subscribe/', {
         method: 'POST',
         body: JSON.stringify({ plan_id: planId }),
@@ -157,15 +122,6 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     setIsLoading(true);
     try {
-      if (shouldUseMockData()) {
-        setSubscription({
-          ...subscription,
-          cancelAtPeriodEnd: true
-        });
-        toast.success('Abonnement annulé. Il restera actif jusqu\'à la fin de la période.');
-        return;
-      }
-
       const data = await apiCall('/subscriptions/cancel/', {
         method: 'POST',
       });
@@ -186,15 +142,6 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     setIsLoading(true);
     try {
-      if (shouldUseMockData()) {
-        setSubscription({
-          ...subscription,
-          planId
-        });
-        toast.success('Abonnement mis à jour avec succès !');
-        return;
-      }
-
       const data = await apiCall('/subscriptions/update/', {
         method: 'PUT',
         body: JSON.stringify({ plan_id: planId }),

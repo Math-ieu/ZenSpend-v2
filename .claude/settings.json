@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//dev/**)",
+      "Read(//proc/**)",
+      "Read(//home/mathdev/**)",
+      "Bash(curl -fL -s -o /tmp/jdk21.tar.gz \"https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse?project=jdk\")",
+      "Read(//tmp/**)",
+      "Bash(curl -fL -s -o /tmp/cmdline-tools.zip \"https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip\")",
+      "Bash(set -e)",
+      "Bash(mkdir -p ~/jdk21)",
+      "Bash(tar -xzf /tmp/jdk21.tar.gz -C ~/jdk21 --strip-components=1)",
+      "Bash(~/jdk21/bin/java -version)",
+      "Bash(mkdir -p ~/Android/Sdk/cmdline-tools)",
+      "Bash(rm -rf ~/Android/Sdk/cmdline-tools/latest /tmp/ct)",
+      "Bash(unzip -q /tmp/cmdline-tools.zip -d /tmp/ct)",
+      "Bash(mv /tmp/ct/cmdline-tools ~/Android/Sdk/cmdline-tools/latest)",
+      "Bash(pkill -f \"manage.py runserver\")"
+    ]
+  }
+}

@@ -24,7 +24,11 @@ const Footer: React.FC = () => {
                   placeholder="Your email address" 
                   className="flex-1 bg-background border border-border rounded-l-md px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
                 />
-                <button className="bg-primary text-primary-foreground px-4 py-2 rounded-r-md hover:bg-primary/90 transition-colors flex items-center justify-center">
+                <button
+                  type="button"
+                  aria-label="S'inscrire à la newsletter"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-r-md hover:bg-primary/90 transition-colors flex items-center justify-center"
+                >
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -82,17 +86,17 @@ const Footer: React.FC = () => {
           </p>
           
           <div className="flex flex-wrap justify-center gap-4 md:space-x-6 order-1 md:order-3">
-            <a href="#" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
-              Privacy Policy
-            </a>
+            <Link to="/legal/confidentialite" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
+              Confidentialité
+            </Link>
             <span className="hidden md:inline text-border">•</span>
-            <a href="#" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
-              Terms of Service
-            </a>
+            <Link to="/legal/conditions" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
+              Conditions d'utilisation
+            </Link>
             <span className="hidden md:inline text-border">•</span>
-            <a href="#" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
-              Cookie Policy
-            </a>
+            <Link to="/legal/cookies" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
+              Cookies
+            </Link>
           </div>
         </div>
       </div>

@@ -4,10 +4,9 @@ import Button from '../ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { SubscriptionPlan } from '../../types/subscription';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { formatCurrency } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 interface SubscriptionPlansProps {
@@ -19,9 +18,10 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
   onPlanSelect,
   showCurrentPlan = true 
 }) => {
-  const { currency } = useCurrency();
   const { availablePlans, subscribeToPlan, currentPlan, isLoading, setPendingPlanId } = useSubscription();
-  const { isAuthenticated } = useAuth();
+  // Subscribe to the active currency so amounts re-render on currency change.
+  const { currency } = useCurrency();
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
   const navigate = useNavigate();
 
   const handlePlanSelect = async (plan: SubscriptionPlan) => {

@@ -5,14 +5,16 @@ import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import SubscriptionPlans from '../../components/subscription/SubscriptionPlans';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { formatCurrency } from '../../lib/utils';
 
 
 const SubscriptionPage: React.FC = () => {
+  // Subscribe to the active currency so amounts re-render on currency change.
   const { currency } = useCurrency();
-  const { 
-    subscription, 
+  const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
+  const {
+    subscription,
     currentPlan, 
     featureAccess, 
     isLoading,

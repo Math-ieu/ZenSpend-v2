@@ -6,6 +6,8 @@ export const currentUser: User = {
   first_name: 'Sophie',
   last_name : 'Martin',
   email: 'sophie.martin@example.com',
+  phone_number: '',
+  preferred_currency: 'EUR',
   avatar: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=100',
 };
 

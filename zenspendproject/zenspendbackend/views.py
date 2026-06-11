@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import generics, status, filters
+from rest_framework import generics, status, filters, throttling
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
@@ -20,7 +20,10 @@ from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
 from decimal import Decimal
 import hashlib
-from .services.email_delivery import send_password_reset_email
+from .services.email_delivery import send_password_reset_email, send_contact_email
+from .services.categorization import apply_rules_to_transaction
+from .services.csv_import import import_transactions_from_csv, CSVImportError
+from .services.notifications import check_budget_alerts, check_goals_reached
 User = get_user_model()
 import logging
 
@@ -323,9 +326,17 @@ class TransactionListCreateView(generics.ListCreateAPIView):
         return Transaction.objects.filter(user=self.request.user).select_related(
             'category', 'account'
         ).prefetch_related('tags')
-    
+
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        transaction = serializer.save(user=self.request.user)
+        # Auto-categorize from the user's active rules when no category was given.
+        apply_rules_to_transaction(transaction)
+        # Surface budget / goal notifications opportunistically.
+        try:
+            check_budget_alerts(self.request.user)
+            check_goals_reached(self.request.user)
+        except Exception:  # pragma: no cover - notifications must never block writes
+            logger.exception('Notification check failed after transaction create')
 
 
 class TransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -379,9 +390,17 @@ class BudgetListCreateView(generics.ListCreateAPIView):
 class BudgetDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BudgetSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        budget = serializer.save()
+        # Spending may have changed; re-check this budget's alert threshold.
+        try:
+            check_budget_alerts(self.request.user, budgets=[budget])
+        except Exception:  # pragma: no cover
+            logger.exception('Notification check failed after budget update')
 
 
 # ==================== SAVINGS GOAL VIEWS ====================
@@ -403,9 +422,17 @@ class SavingsGoalListCreateView(generics.ListCreateAPIView):
 class SavingsGoalDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SavingsGoalSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         return SavingsGoal.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        goal = serializer.save()
+        # The goal may have just reached its target.
+        try:
+            check_goals_reached(self.request.user, goals=[goal])
+        except Exception:  # pragma: no cover
+            logger.exception('Notification check failed after goal update')
 
 
 # ==================== DEBT TRACKER VIEWS ====================
@@ -725,9 +752,83 @@ class ImportSessionListCreateView(generics.ListCreateAPIView):
 class ImportSessionDetailView(generics.RetrieveAPIView):
     serializer_class = ImportSessionSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         return ImportSession.objects.filter(user=self.request.user)
+
+
+class ImportSessionUploadView(APIView):
+    """Upload a CSV file and create transactions from it.
+
+    Accepts multipart form-data with a ``file`` field and an optional
+    ``account`` id. De-duplicates rows and auto-categorizes new transactions.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        upload = request.FILES.get('file')
+        if upload is None:
+            return Response(
+                {'message': 'Aucun fichier fourni (champ "file" attendu).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        account = None
+        account_id = request.data.get('account')
+        if account_id:
+            account = BankAccount.objects.filter(user=request.user, pk=account_id).first()
+            if account is None:
+                return Response(
+                    {'message': "Compte introuvable."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        session = ImportSession.objects.create(
+            user=request.user,
+            source='csv',
+            account=account,
+            file_name=getattr(upload, 'name', '')[:255],
+            status='processing',
+        )
+
+        try:
+            result = import_transactions_from_csv(
+                request.user,
+                account,
+                upload.read(),
+                file_name=session.file_name,
+            )
+        except CSVImportError as error:
+            session.status = 'failed'
+            session.error_message = str(error)
+            session.save(update_fields=['status', 'error_message'])
+            return Response({'message': str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as error:  # pragma: no cover - defensive
+            logger.exception('CSV import failed for user %s', request.user.id)
+            session.status = 'failed'
+            session.error_message = str(error)
+            session.save(update_fields=['status', 'error_message'])
+            return Response(
+                {'message': "L'import a échoué. Vérifiez le format du fichier."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        session.status = 'completed'
+        session.transactions_count = result['created']
+        session.duplicates_count = result['duplicates']
+        session.save(update_fields=['status', 'transactions_count', 'duplicates_count'])
+
+        return Response(
+            {
+                'message': (
+                    f"{result['created']} transaction(s) importée(s), "
+                    f"{result['duplicates']} doublon(s) ignoré(s)."
+                ),
+                'import_session': ImportSessionSerializer(session).data,
+                **result,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ==================== ACHIEVEMENT VIEWS ====================
@@ -1093,3 +1194,33 @@ class AnalyticsCategoryDistributionView(APIView):
             'data': data,
             'colors': colors
         })
+
+class ContactRateThrottle(throttling.AnonRateThrottle):
+    scope = 'contact'
+
+
+class ContactView(APIView):
+    """Public endpoint receiving contact-form submissions and emailing support."""
+    permission_classes = [AllowAny]
+    throttle_classes = [ContactRateThrottle]
+
+    def post(self, request):
+        serializer = ContactMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        sent = send_contact_email(
+            name=data['name'],
+            sender_email=data['email'],
+            subject=data['subject'],
+            message=data['message'],
+        )
+        if not sent:
+            return Response(
+                {'message': "Le message n'a pas pu être envoyé. Réessayez plus tard."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(
+            {'message': 'Message envoyé. Merci, nous reviendrons vers vous rapidement.'},
+            status=status.HTTP_200_OK,
+        )

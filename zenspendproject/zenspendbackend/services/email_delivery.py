@@ -1,7 +1,7 @@
 import logging
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, send_mail
 
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,36 @@ def _send_with_resend(recipient_email, subject, text_content, html_content):
         payload['reply_to'] = settings.RESEND_REPLY_TO
 
     resend.Emails.send(payload)
+
+
+def send_contact_email(name, sender_email, subject, message):
+    """Forward a contact-form submission to the support inbox.
+
+    Uses the configured Django email backend (console in development). The
+    visitor's email is set as reply-to so support can answer directly.
+    """
+    recipient = getattr(settings, 'CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL)
+    full_subject = f'[Contact ZenSpend] {subject}'
+    body = (
+        f'Nouveau message de contact\n\n'
+        f'Nom: {name}\n'
+        f'Email: {sender_email}\n'
+        f'Sujet: {subject}\n\n'
+        f'{message}\n'
+    )
+    try:
+        email = EmailMessage(
+            subject=full_subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient],
+            reply_to=[sender_email] if sender_email else None,
+        )
+        email.send(fail_silently=False)
+        return True
+    except Exception:
+        logger.exception('Contact email could not be sent from %s', sender_email)
+        return False
 
 
 def send_password_reset_email(recipient_email, reset_url):

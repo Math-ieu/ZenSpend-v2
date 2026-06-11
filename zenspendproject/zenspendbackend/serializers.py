@@ -239,10 +239,10 @@ class RecurringScheduleSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'next_occurrence']
 
 class TransactionSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), allow_null=True)
-    account = serializers.PrimaryKeyRelatedField(queryset=BankAccount.objects.all(), allow_null=True)
-    tags = serializers.PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), allow_null=True, required=False)
+    account = serializers.PrimaryKeyRelatedField(queryset=BankAccount.objects.all(), allow_null=True, required=False)
+    tags = serializers.PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all(), required=False)
     receipt = ReceiptSerializer(required=False, allow_null=True)
     recurring_schedule = RecurringScheduleSerializer(required=False, allow_null=True)
 
@@ -639,7 +639,7 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPreference
         fields = ['id', 'user', 'theme', 'language', 'dashboard_widgets',
-                  'start_page', 'export_format']
+                  'start_page', 'export_format', 'onboarding_completed']
         read_only_fields = ['id']
 
 class FinancialInsightSerializer(serializers.ModelSerializer):
@@ -664,3 +664,10 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         
         read_only_fields = ['id', 'current_period_start', 'current_period_end', 'next_billing_date']
         
+
+class ContactMessageSerializer(serializers.Serializer):
+    """Validates a public contact-form submission (no model backing)."""
+    name = serializers.CharField(max_length=120)
+    email = serializers.EmailField()
+    subject = serializers.CharField(max_length=200)
+    message = serializers.CharField(max_length=5000)

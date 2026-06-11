@@ -3,12 +3,14 @@ import { Plus, MinusCircle, PlusCircle, Info, Calendar } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency as formatCurrencyUtil } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { formatCurrency } from '../../lib/utils';
 import { toast } from 'react-hot-toast';
 
 const DebtPage: React.FC = () => {
+    // Subscribe to the active currency so amounts re-render on currency change.
     const { currency } = useCurrency();
+    const formatCurrency = (amount: number, override?: string) => formatCurrencyUtil(amount, override ?? currency);
     const { fetchDebts } = useAuth();
     const [debts, setDebts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);

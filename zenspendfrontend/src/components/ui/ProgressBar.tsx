@@ -1,4 +1,3 @@
-import React from 'react';
 import { cn, createColorShade } from '../../lib/utils';
 
 interface ProgressBarProps {
