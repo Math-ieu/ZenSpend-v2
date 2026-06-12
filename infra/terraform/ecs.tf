@@ -19,6 +19,9 @@ locals {
   backend_environment = [
     { name = "DEBUG", value = var.django_debug },
     { name = "DJANGO_SETTINGS_MODULE", value = "zenspendproject.settings" },
+    # TLS terminé par CloudFront (redirect-to-https au edge) ; le hop CloudFront→ALB
+    # est en HTTP, donc la redirection HTTPS de Django serait redondante et boucle.
+    { name = "SECURE_SSL_REDIRECT", value = "false" },
     { name = "ALLOWED_HOSTS", value = var.allowed_hosts },
     { name = "CORS_ALLOWED_ORIGINS", value = "https://${aws_cloudfront_distribution.frontend.domain_name}" },
     { name = "DATABASE_ENGINE", value = "postgres" },
