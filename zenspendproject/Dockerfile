@@ -1,5 +1,5 @@
-# Utilise une image Python
-FROM python:3.10-slim
+# Utilise une image Python (3.12 : le code utilise des f-strings PEP 701)
+FROM python:3.12-slim
 
 # Définir les variables d'environnement
 ENV PYTHONDONTWRITEBYTECODE=1 \
