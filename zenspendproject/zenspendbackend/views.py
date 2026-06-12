@@ -17,6 +17,7 @@ from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Sum, Count
 from django.utils.dateparse import parse_date
+from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 import hashlib
@@ -232,12 +233,25 @@ class UserListView(generics.ListAPIView):
         return User.objects.filter(id=self.request.user.id)
 
 
-class UserDetailView(generics.RetrieveUpdateAPIView):
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_object(self):
         return self.request.user
+
+    def destroy(self, request, *args, **kwargs):
+        """Suppression de compte (soft delete).
+
+        Le compte est désactivé immédiatement (l'utilisateur ne peut plus se
+        connecter) et marqué pour purge. La suppression définitive des données
+        est effectuée après un délai par `manage.py purge_deleted_accounts`.
+        """
+        user = self.get_object()
+        user.is_active = False
+        user.deletion_requested_at = timezone.now()
+        user.save(update_fields=['is_active', 'deletion_requested_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ==================== BANK ACCOUNT VIEWS ====================

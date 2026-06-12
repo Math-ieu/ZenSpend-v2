@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Button, Card, Field } from '../src/components/ui';
+import { userApi } from '../src/api/resources';
 import { useAuth } from '../src/context/AuthContext';
 import { colors, spacing, fontSize, radius } from '../src/theme';
 
@@ -14,6 +15,7 @@ export default function ProfileScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const initials =
     `${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase() || '?';
@@ -30,6 +32,30 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'Cette action désactive immédiatement votre compte. Vos données seront définitivement supprimées sous 30 jours. Cette action est irréversible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await userApi.deleteAccount();
+              await logout();
+            } catch (e: any) {
+              setDeleting(false);
+              Alert.alert('Erreur', e?.message || 'Échec de la suppression du compte.');
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -60,6 +86,20 @@ export default function ProfileScreen() {
         <View style={styles.logoutWrap}>
           <Button title="Se déconnecter" variant="secondary" onPress={logout} />
         </View>
+
+        <View style={styles.dangerZone}>
+          <Text style={styles.dangerTitle}>Zone de danger</Text>
+          <Text style={styles.dangerHint}>
+            La suppression désactive votre compte immédiatement. Vos données sont
+            définitivement effacées sous 30 jours.
+          </Text>
+          <Button
+            title="Supprimer mon compte"
+            variant="danger"
+            loading={deleting}
+            onPress={onDeleteAccount}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -84,4 +124,21 @@ const styles = StyleSheet.create({
   success: { color: colors.success, fontSize: fontSize.sm, marginBottom: spacing.md },
   error: { color: colors.error, fontSize: fontSize.sm, marginBottom: spacing.md },
   logoutWrap: { marginTop: spacing.xl },
+  dangerZone: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  dangerTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    color: colors.error,
+    marginBottom: spacing.xs,
+  },
+  dangerHint: {
+    fontSize: fontSize.xs,
+    color: colors.muted,
+    marginBottom: spacing.md,
+  },
 });

@@ -1,0 +1,19 @@
+# Copier en terraform.tfvars et ajuster. Toutes les valeurs ont un défaut
+# raisonnable ; ce fichier ne sert qu'à surcharger.
+
+aws_region  = "eu-west-3"
+project     = "zenspend"
+environment = "prod"
+
+# Backend
+backend_image_tag     = "latest"
+backend_cpu           = 512
+backend_memory        = 1024
+backend_desired_count = 2
+
+# Base de données
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20
+db_multi_az          = false
+
+# tags = { Owner = "mathieu", CostCenter = "zenspend" }

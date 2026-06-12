@@ -15,6 +15,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import TermsPage from './pages/legal/TermsPage';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import CookiesPage from './pages/legal/CookiesPage';
+import DataDeletionPage from './pages/legal/DataDeletionPage';
 import NotFound from './pages/NotFound';
 
 // Protected Pages 
@@ -65,6 +66,7 @@ function App() {
                 <Route path="/legal/conditions" element={<TermsPage />} />
                 <Route path="/legal/confidentialite" element={<PrivacyPage />} />
                 <Route path="/legal/cookies" element={<CookiesPage />} />
+                <Route path="/legal/suppression-compte" element={<DataDeletionPage />} />
               </Route>
 
               {/* Protected Routes */}

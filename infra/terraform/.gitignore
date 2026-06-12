@@ -1,0 +1,16 @@
+# Terraform — ne jamais committer le state (contient des secrets en clair),
+# les plans, les overrides locaux ni les providers téléchargés.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+*.tfvars
+!*.tfvars.example
+.terraformrc
+terraform.rc
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

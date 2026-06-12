@@ -24,7 +24,7 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   loading?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -39,7 +39,9 @@ export function Button({
   style,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
+  const isDanger = variant === 'danger';
   const isGhost = variant === 'ghost';
+  const isFilled = isPrimary || isDanger;
   return (
     <Pressable
       onPress={onPress}
@@ -47,6 +49,7 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         isPrimary && styles.buttonPrimary,
+        isDanger && styles.buttonDanger,
         variant === 'secondary' && styles.buttonSecondary,
         isGhost && styles.buttonGhost,
         (disabled || loading) && styles.buttonDisabled,
@@ -55,12 +58,12 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.white : colors.primary} />
+        <ActivityIndicator color={isFilled ? colors.white : colors.primary} />
       ) : (
         <Text
           style={[
             styles.buttonText,
-            isPrimary ? styles.buttonTextPrimary : styles.buttonTextSecondary,
+            isFilled ? styles.buttonTextPrimary : styles.buttonTextSecondary,
           ]}
         >
           {title}
@@ -129,6 +132,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   buttonPrimary: { backgroundColor: colors.primary },
+  buttonDanger: { backgroundColor: colors.error },
   buttonSecondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   buttonGhost: { backgroundColor: 'transparent' },
   buttonDisabled: { opacity: 0.6 },

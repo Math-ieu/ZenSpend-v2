@@ -90,6 +90,12 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                 {"detail": "Email et mot de passe sont requis."}
             )
 
+        # Compte désactivé (ex: suppression demandée) → connexion refusée.
+        if not user.is_active:
+            raise serializers.ValidationError(
+                {"detail": "Ce compte a été désactivé."}
+            )
+
         # Obtenir le token JWT
         refresh = self.get_token(user)
 

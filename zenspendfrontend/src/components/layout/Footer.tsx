@@ -97,6 +97,10 @@ const Footer: React.FC = () => {
             <Link to="/legal/cookies" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
               Cookies
             </Link>
+            <span className="hidden md:inline text-border">•</span>
+            <Link to="/legal/suppression-compte" className="text-sm text-muted hover:text-primary transition-colors whitespace-nowrap">
+              Suppression de compte
+            </Link>
           </div>
         </div>
       </div>
