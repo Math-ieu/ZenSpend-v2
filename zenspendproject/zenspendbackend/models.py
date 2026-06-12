@@ -48,6 +48,7 @@ class User(AbstractBaseUser):
     preferred_currency = models.CharField(max_length=3, default='EUR')
     user_segment = models.CharField(max_length=32, choices=USER_SEGMENT_CHOICES, default=SEGMENT_YOUNG_PROFESSIONALS)
     notification_preferences = models.JSONField(default=default_notification_preferences)
+    deletion_requested_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']

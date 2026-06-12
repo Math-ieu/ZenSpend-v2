@@ -12,3 +12,5 @@ pymongo
 sqlparse
 python-dotenv
 resend
+gunicorn
+whitenoise

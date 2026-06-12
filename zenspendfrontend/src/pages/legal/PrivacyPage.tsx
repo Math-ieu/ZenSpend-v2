@@ -32,7 +32,9 @@ const PrivacyPage: React.FC = () => {
       <h2>4. Conservation</h2>
       <p>
         Vos données sont conservées tant que votre compte est actif. À la suppression du compte,
-        elles sont effacées ou anonymisées dans un délai raisonnable, sauf obligation légale contraire.
+        elles sont effacées dans un délai de 30 jours, sauf obligation légale contraire. Vous
+        pouvez supprimer votre compte depuis l'application ou via notre{' '}
+        <a href="/legal/suppression-compte">page de suppression de compte</a>.
       </p>
 
       <h2>5. Partage</h2>

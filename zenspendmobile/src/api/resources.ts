@@ -126,4 +126,5 @@ export const userApi = {
   preferences: () => apiRequest('/user-preferences/'),
   completeOnboarding: () =>
     apiRequest('/user-preferences/', { method: 'PATCH', body: { onboarding_completed: true } }),
+  deleteAccount: () => apiRequest<void>('/users/profile/', { method: 'DELETE' }),
 };
