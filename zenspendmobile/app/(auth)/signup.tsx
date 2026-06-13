@@ -12,9 +12,14 @@ import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Field } from '../../src/components/ui';
+import { MotionView } from '../../src/components/motion';
 import { useAuth } from '../../src/context/AuthContext';
 import type { UserSegment } from '../../src/types';
 import { colors, spacing, fontSize, radius } from '../../src/theme';
+
+// Warm cream background that matches the auth design mockups.
+const CREAM = '#FDF6EF';
+const pill = { borderRadius: radius.full } as const;
 
 const SEGMENTS: { value: UserSegment; label: string }[] = [
   { value: 'young_professionals', label: 'Jeune actif' },
@@ -77,39 +82,36 @@ export default function SignupScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <View style={styles.badge}>
-              <Ionicons name="person-add" size={26} color={colors.white} />
-            </View>
+          <MotionView index={0} style={styles.header}>
             <Text style={styles.title}>Créer un compte</Text>
-            <Text style={styles.subtitle}>Commencez à gérer vos finances en quelques secondes</Text>
-          </View>
+            <Text style={styles.subtitle}>Gérez vos finances en quelques secondes</Text>
+          </MotionView>
 
-          <View style={styles.card}>
+          <MotionView index={1} style={styles.form}>
             <View style={styles.nameRow}>
               <View style={styles.flex}>
-                <Field label="Prénom" icon="person-outline" value={form.first_name} onChangeText={set('first_name')} />
+                <Field label="Prénom" value={form.first_name} onChangeText={set('first_name')} containerStyle={pill} />
               </View>
               <View style={styles.flex}>
-                <Field label="Nom" value={form.last_name} onChangeText={set('last_name')} />
+                <Field label="Nom" value={form.last_name} onChangeText={set('last_name')} containerStyle={pill} />
               </View>
             </View>
             <Field
               label="Email"
-              icon="mail-outline"
               value={form.email}
               onChangeText={set('email')}
               autoCapitalize="none"
               keyboardType="email-address"
               placeholder="vous@exemple.com"
+              containerStyle={pill}
             />
             <Field
               label="Téléphone (optionnel)"
-              icon="call-outline"
               value={form.phone_number}
               onChangeText={set('phone_number')}
               keyboardType="phone-pad"
               placeholder="06 12 34 56 78"
+              containerStyle={pill}
             />
 
             <Text style={styles.label}>Devise</Text>
@@ -142,19 +144,19 @@ export default function SignupScreen() {
 
             <Field
               label="Mot de passe"
-              icon="lock-closed-outline"
               value={form.password}
               onChangeText={set('password')}
               secureTextEntry
               placeholder="••••••••"
+              containerStyle={pill}
             />
             <Field
               label="Confirmer le mot de passe"
-              icon="lock-closed-outline"
               value={form.password_confirm}
               onChangeText={set('password_confirm')}
               secureTextEntry
               placeholder="••••••••"
+              containerStyle={pill}
             />
 
             {error ? (
@@ -164,15 +166,15 @@ export default function SignupScreen() {
               </View>
             ) : null}
 
-            <Button title="S'inscrire" onPress={onSubmit} loading={loading} />
-          </View>
+            <Button title="S'inscrire" onPress={onSubmit} loading={loading} style={pill} />
+          </MotionView>
 
-          <View style={styles.footer}>
+          <MotionView index={2} style={styles.footer}>
             <Text style={styles.footerText}>Déjà un compte ? </Text>
             <Link href="/(auth)/login" style={styles.link}>
               Se connecter
             </Link>
-          </View>
+          </MotionView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -180,40 +182,15 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: CREAM },
   flex: { flex: 1 },
   container: { padding: spacing.xl },
 
-  header: { alignItems: 'center', marginBottom: spacing.xl },
-  badge: {
-    width: 60,
-    height: 60,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  title: { fontSize: 26, fontWeight: '800', color: colors.foreground, letterSpacing: -0.5 },
-  subtitle: { fontSize: fontSize.sm, color: colors.muted, marginTop: spacing.xs, textAlign: 'center' },
+  header: { marginBottom: spacing.xl },
+  title: { fontSize: 28, fontWeight: '800', color: colors.foreground, letterSpacing: -0.5 },
+  subtitle: { fontSize: fontSize.sm, color: colors.muted, marginTop: spacing.xs },
 
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
+  form: { gap: spacing.xs },
   nameRow: { flexDirection: 'row', gap: spacing.md },
 
   label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.foreground, marginBottom: spacing.sm },
@@ -241,7 +218,7 @@ const styles = StyleSheet.create({
   },
   errorText: { color: colors.error, fontSize: fontSize.sm, flex: 1 },
 
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xxl },
   footerText: { color: colors.muted, fontSize: fontSize.sm },
   link: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '700' },
 });

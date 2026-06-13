@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { MotionView } from '../../src/components/motion';
 import { Avatar, Card, EmptyState, ProgressBar } from '../../src/components/ui';
 import { DonutChart } from '../../src/components/DonutChart';
 import { useFetch } from '../../src/lib/useFetch';
@@ -83,16 +84,19 @@ export default function DashboardScreen() {
           />
         }
       >
-        <ScreenHeader
-          eyebrow={today}
-          title={`Bonjour${user?.first_name ? `, ${user.first_name}` : ''}`}
-          subtitle="Voici votre situation financière"
-          action={
-            <Avatar name={fullName} uri={user?.avatar} onPress={() => router.push('/profile')} />
-          }
-        />
+        <MotionView index={0}>
+          <ScreenHeader
+            eyebrow={today}
+            title={`Bonjour${user?.first_name ? `, ${user.first_name}` : ''}`}
+            subtitle="Voici votre situation financière"
+            action={
+              <Avatar name={fullName} uri={user?.avatar} onPress={() => router.push('/profile')} />
+            }
+          />
+        </MotionView>
 
         {/* Solde total */}
+        <MotionView index={1}>
         <Card style={styles.balanceCard}>
           <View style={styles.balanceTop}>
             <Text style={styles.balanceLabel}>Solde total</Text>
@@ -112,9 +116,10 @@ export default function DashboardScreen() {
             </View>
           ) : null}
         </Card>
+        </MotionView>
 
         {/* Actions rapides */}
-        <View style={styles.actionsRow}>
+        <MotionView index={2} style={styles.actionsRow}>
           {QUICK_ACTIONS.map((a) => (
             <Pressable
               key={a.route}
@@ -127,10 +132,10 @@ export default function DashboardScreen() {
               <Text style={styles.actionLabel}>{a.label}</Text>
             </Pressable>
           ))}
-        </View>
+        </MotionView>
 
         {/* Revenus / Dépenses */}
-        <View style={styles.statsRow}>
+        <MotionView index={3} style={styles.statsRow}>
           <Card style={styles.statCard}>
             <View style={styles.statIconRow}>
               <Ionicons name="arrow-down-circle" size={20} color={colors.success} />
@@ -149,11 +154,11 @@ export default function DashboardScreen() {
               {formatCurrency(Number(s.monthlyExpenses) || 0, s.currency || currency)}
             </Text>
           </Card>
-        </View>
+        </MotionView>
 
         {/* Carrousel de comptes */}
         {accountList.length > 0 ? (
-          <>
+          <MotionView index={4}>
             <View style={styles.sectionRow}>
               <Text style={styles.sectionTitle}>Mes comptes</Text>
               <Pressable onPress={() => router.push('/accounts')}>
@@ -183,12 +188,12 @@ export default function DashboardScreen() {
                 );
               })}
             </ScrollView>
-          </>
+          </MotionView>
         ) : null}
 
         {/* Transactions récentes */}
         {recentTx.length > 0 ? (
-          <>
+          <MotionView index={5}>
             <View style={styles.sectionRow}>
               <Text style={styles.sectionTitle}>Transactions récentes</Text>
               <Pressable onPress={() => router.push('/transactions')}>
@@ -224,10 +229,11 @@ export default function DashboardScreen() {
                 );
               })}
             </Card>
-          </>
+          </MotionView>
         ) : null}
 
         {/* Dépenses par catégorie (donut) */}
+        <MotionView index={6}>
         <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Dépenses par catégorie</Text>
         <Card>
           {summary.error ? (
@@ -259,6 +265,7 @@ export default function DashboardScreen() {
             />
           )}
         </Card>
+        </MotionView>
       </ScrollView>
     </SafeAreaView>
   );

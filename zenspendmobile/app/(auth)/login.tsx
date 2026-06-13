@@ -11,8 +11,14 @@ import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Field } from '../../src/components/ui';
+import { MotionView } from '../../src/components/motion';
+import { FloatingStickers } from '../../src/components/FloatingStickers';
 import { useAuth } from '../../src/context/AuthContext';
 import { colors, spacing, fontSize, radius } from '../../src/theme';
+
+// Warm cream background that matches the auth design mockups.
+const CREAM = '#FDF6EF';
+const pill = { borderRadius: radius.full } as const;
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -45,33 +51,33 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <View style={styles.badge}>
-              <Ionicons name="wallet" size={32} color={colors.white} />
-            </View>
-            <Text style={styles.brand}>ZenSpend</Text>
-            <Text style={styles.title}>Bon retour</Text>
-            <Text style={styles.subtitle}>Connectez-vous pour gérer vos finances</Text>
-          </View>
+          <MotionView index={0} style={styles.hero}>
+            <FloatingStickers />
+          </MotionView>
 
-          <View style={styles.card}>
+          <MotionView index={1} style={styles.header}>
+            <Text style={styles.title}>Se connecter</Text>
+            <Text style={styles.subtitle}>Heureux de vous revoir sur votre compte !</Text>
+          </MotionView>
+
+          <MotionView index={2} style={styles.form}>
             <Field
               label="Email"
-              icon="mail-outline"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               placeholder="vous@exemple.com"
+              containerStyle={pill}
             />
             <Field
               label="Mot de passe"
-              icon="lock-closed-outline"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               placeholder="••••••••"
+              containerStyle={pill}
             />
 
             <Link href="/(auth)/forgot-password" style={styles.forgot}>
@@ -85,15 +91,15 @@ export default function LoginScreen() {
               </View>
             ) : null}
 
-            <Button title="Se connecter" onPress={onSubmit} loading={loading} />
-          </View>
+            <Button title="Se connecter" onPress={onSubmit} loading={loading} style={pill} />
+          </MotionView>
 
-          <View style={styles.footer}>
+          <MotionView index={3} style={styles.footer}>
             <Text style={styles.footerText}>Pas encore de compte ? </Text>
             <Link href="/(auth)/signup" style={styles.link}>
               Créer un compte
             </Link>
-          </View>
+          </MotionView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -101,41 +107,16 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: CREAM },
   flex: { flex: 1 },
   container: { padding: spacing.xl, flexGrow: 1, justifyContent: 'center' },
+  hero: { marginBottom: spacing.sm },
 
-  header: { alignItems: 'center', marginBottom: spacing.xl },
-  badge: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  brand: { fontSize: fontSize.md, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 },
-  title: { fontSize: 28, fontWeight: '800', color: colors.foreground, marginTop: spacing.sm, letterSpacing: -0.5 },
+  header: { marginBottom: spacing.xl },
+  title: { fontSize: 28, fontWeight: '800', color: colors.foreground, letterSpacing: -0.5 },
   subtitle: { fontSize: fontSize.sm, color: colors.muted, marginTop: spacing.xs },
 
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
+  form: { gap: spacing.xs },
   forgot: {
     color: colors.primary,
     fontSize: fontSize.sm,
@@ -154,7 +135,7 @@ const styles = StyleSheet.create({
   },
   errorText: { color: colors.error, fontSize: fontSize.sm, flex: 1 },
 
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xxl },
   footerText: { color: colors.muted, fontSize: fontSize.sm },
   link: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '700' },
 });

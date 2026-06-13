@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { MotionView } from '../../src/components/motion';
 import { EmptyState } from '../../src/components/ui';
 import { useFetch } from '../../src/lib/useFetch';
 import { transactionsApi } from '../../src/api/resources';
@@ -20,10 +21,10 @@ export default function TransactionsScreen() {
     [],
   );
 
-  const renderItem = ({ item }: { item: Transaction }) => {
+  const renderItem = ({ item, index }: { item: Transaction; index: number }) => {
     const isIncome = item.type === 'income';
     return (
-      <View style={styles.row}>
+      <MotionView index={Math.min(index, 8)} style={styles.row}>
         <View style={[styles.iconBubble, { backgroundColor: isIncome ? '#DCFCE7' : '#FEE2E2' }]}>
           <Ionicons
             name={isIncome ? 'arrow-down' : 'arrow-up'}
@@ -43,21 +44,23 @@ export default function TransactionsScreen() {
           {isIncome ? '+' : '-'}
           {formatCurrency(item.amount, currency)}
         </Text>
-      </View>
+      </MotionView>
     );
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.content}>
-        <ScreenHeader
-          title="Transactions"
-          action={
-            <Pressable style={styles.addBtn} onPress={() => router.push('/new-transaction')}>
-              <Ionicons name="add" size={24} color={colors.white} />
-            </Pressable>
-          }
-        />
+        <MotionView index={0}>
+          <ScreenHeader
+            title="Transactions"
+            action={
+              <Pressable style={styles.addBtn} onPress={() => router.push('/new-transaction')}>
+                <Ionicons name="add" size={24} color={colors.white} />
+              </Pressable>
+            }
+          />
+        </MotionView>
         <FlatList
           data={data || []}
           keyExtractor={(t) => String(t.id)}

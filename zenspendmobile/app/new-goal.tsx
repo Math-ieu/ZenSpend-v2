@@ -5,10 +5,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  View,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field } from '../src/components/ui';
+import { DateField } from '../src/components/DateField';
+import { MotionView } from '../src/components/motion';
+import { StickerBadge, StickerScatter, STICKER_TINTS } from '../src/components/FloatingStickers';
 import { goalsApi } from '../src/api/resources';
 import { colors, spacing, fontSize } from '../src/theme';
 
@@ -54,28 +58,47 @@ export default function NewGoalScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Nouvel objectif</Text>
+          <MotionView index={0} style={styles.titleRow}>
+            <Text style={[styles.title, styles.titleFlex]}>Nouvel objectif</Text>
+            <StickerBadge emoji="🎯" tint={STICKER_TINTS.target} />
+          </MotionView>
 
-          <Field label="Nom" value={name} onChangeText={setName} placeholder="Ex: Vacances" />
-          <Field
-            label="Montant cible"
-            value={target}
-            onChangeText={setTarget}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
-          <Field
-            label="Échéance (optionnel)"
-            value={deadline}
-            onChangeText={setDeadline}
-            placeholder="AAAA-MM-JJ"
-            autoCapitalize="none"
-          />
+          <MotionView index={1}>
+            <Field label="Nom" value={name} onChangeText={setName} placeholder="Ex: Vacances" />
+          </MotionView>
+          <MotionView index={2}>
+            <Field
+              label="Montant cible"
+              value={target}
+              onChangeText={setTarget}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+            />
+          </MotionView>
+          <MotionView index={3}>
+            <DateField
+              label="Échéance (optionnel)"
+              value={deadline}
+              onChange={setDeadline}
+              placeholder="Choisir une date"
+              clearable
+              minimumDate={new Date()}
+            />
+          </MotionView>
+
+          <View style={styles.filler}>
+            <StickerScatter
+              left={{ emoji: '🏦', tint: STICKER_TINTS.bank }}
+              right={{ emoji: '💰', tint: STICKER_TINTS.bag }}
+            />
+          </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
-          <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          <MotionView index={4}>
+            <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
+            <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          </MotionView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -85,7 +108,10 @@ export default function NewGoalScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  container: { padding: spacing.xl },
+  container: { padding: spacing.xl, flexGrow: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.xl },
+  titleFlex: { flex: 1, marginBottom: 0 },
+  filler: { flex: 1, justifyContent: 'center', minHeight: 170 },
   title: { fontSize: fontSize.xl, fontWeight: '800', color: colors.foreground, marginBottom: spacing.xl },
   error: { color: colors.error, fontSize: fontSize.sm, marginBottom: spacing.md },
 });

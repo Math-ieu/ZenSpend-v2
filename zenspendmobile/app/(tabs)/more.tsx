@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Href } from 'expo-router';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { MotionView } from '../../src/components/motion';
 import { Card } from '../../src/components/ui';
 import { useAuth } from '../../src/context/AuthContext';
 import { colors, spacing, fontSize, radius } from '../../src/theme';
@@ -23,8 +24,11 @@ export default function MoreScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="Plus" subtitle={user?.email} />
+        <MotionView index={0}>
+          <ScreenHeader title="Plus" subtitle={user?.email} />
+        </MotionView>
 
+        <MotionView index={1}>
         <Card style={styles.menuCard}>
           {ITEMS.map((item, i) => (
             <Pressable
@@ -40,11 +44,14 @@ export default function MoreScreen() {
             </Pressable>
           ))}
         </Card>
+        </MotionView>
 
-        <Pressable style={styles.logout} onPress={logout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Se déconnecter</Text>
-        </Pressable>
+        <MotionView index={2}>
+          <Pressable style={styles.logout} onPress={logout}>
+            <Ionicons name="log-out-outline" size={20} color={colors.error} />
+            <Text style={styles.logoutText}>Se déconnecter</Text>
+          </Pressable>
+        </MotionView>
       </ScrollView>
     </SafeAreaView>
   );

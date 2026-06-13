@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field } from '../../src/components/ui';
+import { FloatingStickers } from '../../src/components/FloatingStickers';
 import { authApi } from '../../src/api/auth';
 import { colors, spacing, fontSize } from '../../src/theme';
 
@@ -32,6 +33,7 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <FloatingStickers style={styles.hero} />
         <Text style={styles.title}>Mot de passe oublié</Text>
         <Text style={styles.subtitle}>
           Saisissez votre email pour recevoir un lien de réinitialisation.
@@ -68,6 +70,7 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.xl, flexGrow: 1, justifyContent: 'center' },
+  hero: { marginBottom: spacing.md },
   title: { fontSize: fontSize.xl, fontWeight: '800', color: colors.foreground, marginBottom: spacing.sm },
   subtitle: { fontSize: fontSize.sm, color: colors.muted, marginBottom: spacing.xl },
   success: { color: colors.success, fontSize: fontSize.sm, marginBottom: spacing.lg },

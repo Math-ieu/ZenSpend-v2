@@ -7,7 +7,7 @@
 //  - notify the auth layer when the session is irrecoverable.
 import { API_BASE_URL } from './config';
 import { tokenStore } from './tokenStore';
-import { USE_MOCKS, getMock } from '../lib/mockData';
+import { USE_MOCKS, getMock, MOCK_USER } from '../lib/mockData';
 
 type Json = Record<string, any>;
 
@@ -104,7 +104,17 @@ export async function apiRequest<T = any>(
         return mock as T;
       }
     }
-    // Writes (POST/PUT/PATCH/DELETE) : on renvoie un succès neutre.
+    // Auth : login / register renvoient une session factice valide pour que le
+    // parcours connexion → dashboard fonctionne sans backend (quels que soient
+    // l'email et le mot de passe saisis).
+    if (endpoint.includes('/auth/login/') || endpoint.includes('/auth/register/')) {
+      return {
+        access: 'mock-access-token',
+        refresh: 'mock-refresh-token',
+        user: MOCK_USER,
+      } as T;
+    }
+    // Autres writes (PUT/PATCH/DELETE, logout…) : succès neutre.
     return (options.body ?? {}) as T;
   }
 

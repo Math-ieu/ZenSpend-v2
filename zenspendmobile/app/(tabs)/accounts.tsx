@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { MotionView } from '../../src/components/motion';
 import { Card, EmptyState } from '../../src/components/ui';
 import { useFetch } from '../../src/lib/useFetch';
 import { accountsApi } from '../../src/api/resources';
@@ -26,14 +27,16 @@ export default function AccountsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.content}>
-        <ScreenHeader
-          title="Comptes"
-          action={
-            <Pressable style={styles.addBtn} onPress={() => router.push('/new-account')}>
-              <Ionicons name="add" size={24} color={colors.white} />
-            </Pressable>
-          }
-        />
+        <MotionView index={0}>
+          <ScreenHeader
+            title="Comptes"
+            action={
+              <Pressable style={styles.addBtn} onPress={() => router.push('/new-account')}>
+                <Ionicons name="add" size={24} color={colors.white} />
+              </Pressable>
+            }
+          />
+        </MotionView>
         <FlatList
           data={data || []}
           keyExtractor={(a) => String(a.id)}
@@ -41,13 +44,16 @@ export default function AccountsScreen() {
           refreshing={loading}
           ListHeaderComponent={
             data && data.length ? (
-              <Card style={styles.totalCard}>
-                <Text style={styles.totalLabel}>Patrimoine total</Text>
-                <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
-              </Card>
+              <MotionView index={1}>
+                <Card style={styles.totalCard}>
+                  <Text style={styles.totalLabel}>Patrimoine total</Text>
+                  <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+                </Card>
+              </MotionView>
             ) : null
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
+            <MotionView index={Math.min(index + 2, 9)}>
             <Card style={styles.accountCard}>
               <View style={styles.accountRow}>
                 <View style={styles.iconBubble}>
@@ -62,6 +68,7 @@ export default function AccountsScreen() {
                 </Text>
               </View>
             </Card>
+            </MotionView>
           )}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           contentContainerStyle={!data?.length && styles.emptyWrap}

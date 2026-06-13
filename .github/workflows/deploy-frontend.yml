@@ -11,7 +11,7 @@ on:
 concurrency:
   group: deploy-frontend
   cancel-in-progress: true
-
+    
 permissions:
   id-token: write # OIDC vers AWS
   contents: read

@@ -11,6 +11,9 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field } from '../src/components/ui';
+import { DateField } from '../src/components/DateField';
+import { MotionView } from '../src/components/motion';
+import { StickerBadge, STICKER_TINTS } from '../src/components/FloatingStickers';
 import { useFetch } from '../src/lib/useFetch';
 import { accountsApi, categoriesApi, transactionsApi } from '../src/api/resources';
 import type { Account, Category } from '../src/types';
@@ -21,9 +24,15 @@ export default function NewTransactionScreen() {
   const accounts = useFetch<Account[]>(() => accountsApi.list(), []);
   const categories = useFetch<Category[]>(() => categoriesApi.list(), []);
 
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [date, setDate] = useState(todayISO());
   const [accountId, setAccountId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +51,7 @@ export default function NewTransactionScreen() {
       await transactionsApi.create({
         amount: signed,
         description: description.trim(),
+        date,
         account: accountId ? Number(accountId) : null,
         category: categoryId ? Number(categoryId) : null,
       });
@@ -61,9 +71,12 @@ export default function NewTransactionScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Nouvelle transaction</Text>
+          <MotionView index={0} style={styles.titleRow}>
+            <Text style={[styles.title, styles.titleFlex]}>Nouvelle transaction</Text>
+            <StickerBadge emoji="💵" tint={STICKER_TINTS.bill} />
+          </MotionView>
 
-          <View style={styles.toggle}>
+          <MotionView index={1} style={styles.toggle}>
             {(['expense', 'income'] as const).map((t) => (
               <Pressable
                 key={t}
@@ -75,41 +88,54 @@ export default function NewTransactionScreen() {
                 </Text>
               </Pressable>
             ))}
-          </View>
+          </MotionView>
 
-          <Field
-            label="Montant"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
-          <Field
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Ex: Courses, Salaire…"
-          />
+          <MotionView index={2}>
+            <Field
+              label="Montant"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+            />
+          </MotionView>
+          <MotionView index={3}>
+            <Field
+              label="Description"
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Ex: Courses, Salaire…"
+            />
+          </MotionView>
+          <MotionView index={4}>
+            <DateField label="Date" value={date} onChange={setDate} maximumDate={new Date()} />
+          </MotionView>
 
-          <Selector
-            label="Compte"
-            options={(accounts.data || []).map((a) => ({ id: String(a.id), label: a.name }))}
-            selected={accountId}
-            onSelect={setAccountId}
-            emptyHint="Aucun compte"
-          />
-          <Selector
-            label="Catégorie"
-            options={(categories.data || []).map((c) => ({ id: String(c.id), label: c.name }))}
-            selected={categoryId}
-            onSelect={setCategoryId}
-            emptyHint="Aucune catégorie"
-          />
+          <MotionView index={5}>
+            <Selector
+              label="Compte"
+              options={(accounts.data || []).map((a) => ({ id: String(a.id), label: a.name }))}
+              selected={accountId}
+              onSelect={setAccountId}
+              emptyHint="Aucun compte"
+            />
+          </MotionView>
+          <MotionView index={6}>
+            <Selector
+              label="Catégorie"
+              options={(categories.data || []).map((c) => ({ id: String(c.id), label: c.name }))}
+              selected={categoryId}
+              onSelect={setCategoryId}
+              emptyHint="Aucune catégorie"
+            />
+          </MotionView>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
-          <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          <MotionView index={7}>
+            <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
+            <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          </MotionView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -158,6 +184,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: spacing.xl },
   title: { fontSize: fontSize.xl, fontWeight: '800', color: colors.foreground, marginBottom: spacing.xl },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.xl },
+  titleFlex: { flex: 1, marginBottom: 0 },
   toggle: {
     flexDirection: 'row',
     backgroundColor: colors.surface,

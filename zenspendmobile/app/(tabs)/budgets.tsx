@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { MotionView } from '../../src/components/motion';
 import { Card, EmptyState, ProgressBar } from '../../src/components/ui';
 import { useFetch } from '../../src/lib/useFetch';
 import { budgetsApi } from '../../src/api/resources';
@@ -20,23 +21,26 @@ export default function BudgetsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.content}>
-        <ScreenHeader
-          title="Budgets"
-          action={
-            <Pressable style={styles.addBtn} onPress={() => router.push('/new-budget')}>
-              <Ionicons name="add" size={24} color={colors.white} />
-            </Pressable>
-          }
-        />
+        <MotionView index={0}>
+          <ScreenHeader
+            title="Budgets"
+            action={
+              <Pressable style={styles.addBtn} onPress={() => router.push('/new-budget')}>
+                <Ionicons name="add" size={24} color={colors.white} />
+              </Pressable>
+            }
+          />
+        </MotionView>
         <FlatList
           data={data || []}
           keyExtractor={(b) => String(b.id)}
           onRefresh={refetch}
           refreshing={loading}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const ratio = item.amount > 0 ? item.spent / item.amount : 0;
             const over = ratio > 1;
             return (
+              <MotionView index={Math.min(index, 8)}>
               <Card style={styles.budgetCard}>
                 <View style={styles.budgetHeader}>
                   <Text style={styles.name}>{item.name}</Text>
@@ -51,6 +55,7 @@ export default function BudgetsScreen() {
                     : `Reste ${formatCurrency(item.amount - item.spent, currency)}`}
                 </Text>
               </Card>
+              </MotionView>
             );
           }}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

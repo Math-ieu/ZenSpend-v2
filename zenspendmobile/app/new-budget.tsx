@@ -11,6 +11,8 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field } from '../src/components/ui';
+import { MotionView } from '../src/components/motion';
+import { StickerBadge, StickerScatter, STICKER_TINTS } from '../src/components/FloatingStickers';
 import { useFetch } from '../src/lib/useFetch';
 import { budgetsApi, categoriesApi } from '../src/api/resources';
 import type { Category } from '../src/types';
@@ -71,18 +73,28 @@ export default function NewBudgetScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Nouveau budget</Text>
-          <Text style={styles.subtitle}>Période : mois en cours</Text>
+          <MotionView index={0} style={styles.titleRow}>
+            <View style={styles.titleFlex}>
+              <Text style={styles.title}>Nouveau budget</Text>
+              <Text style={styles.subtitle}>Période : mois en cours</Text>
+            </View>
+            <StickerBadge emoji="📊" tint={STICKER_TINTS.chart} />
+          </MotionView>
 
-          <Field label="Nom" value={name} onChangeText={setName} placeholder="Ex: Alimentation" />
-          <Field
-            label="Montant mensuel"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
+          <MotionView index={1}>
+            <Field label="Nom" value={name} onChangeText={setName} placeholder="Ex: Alimentation" />
+          </MotionView>
+          <MotionView index={2}>
+            <Field
+              label="Montant mensuel"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+            />
+          </MotionView>
 
+          <MotionView index={3}>
           <Text style={styles.label}>Catégories (optionnel)</Text>
           {categories.data?.length ? (
             <View style={styles.chips}>
@@ -103,11 +115,21 @@ export default function NewBudgetScreen() {
           ) : (
             <Text style={styles.hint}>Aucune catégorie disponible</Text>
           )}
+          </MotionView>
+
+          <View style={styles.filler}>
+            <StickerScatter
+              left={{ emoji: '🏦', tint: STICKER_TINTS.bank }}
+              right={{ emoji: '🪙', tint: STICKER_TINTS.coin }}
+            />
+          </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
-          <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          <MotionView index={4}>
+            <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
+            <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          </MotionView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -117,7 +139,10 @@ export default function NewBudgetScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  container: { padding: spacing.xl },
+  container: { padding: spacing.xl, flexGrow: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  titleFlex: { flex: 1 },
+  filler: { flex: 1, justifyContent: 'center', minHeight: 170 },
   title: { fontSize: fontSize.xl, fontWeight: '800', color: colors.foreground },
   subtitle: { fontSize: fontSize.sm, color: colors.muted, marginBottom: spacing.xl, marginTop: spacing.xs },
   label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.foreground, marginBottom: spacing.sm },

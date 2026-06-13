@@ -11,6 +11,8 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field } from '../src/components/ui';
+import { MotionView } from '../src/components/motion';
+import { StickerBadge, StickerScatter, STICKER_TINTS } from '../src/components/FloatingStickers';
 import { accountsApi } from '../src/api/resources';
 import { colors, spacing, fontSize, radius } from '../src/theme';
 
@@ -61,17 +63,25 @@ export default function NewAccountScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Nouveau compte</Text>
+          <MotionView index={0} style={styles.titleRow}>
+            <Text style={[styles.title, styles.titleFlex]}>Nouveau compte</Text>
+            <StickerBadge emoji="🏦" tint={STICKER_TINTS.bank} />
+          </MotionView>
 
-          <Field label="Nom du compte" value={name} onChangeText={setName} placeholder="Ex: Compte courant" />
-          <Field
-            label="Solde initial"
-            value={balance}
-            onChangeText={setBalance}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
+          <MotionView index={1}>
+            <Field label="Nom du compte" value={name} onChangeText={setName} placeholder="Ex: Compte courant" />
+          </MotionView>
+          <MotionView index={2}>
+            <Field
+              label="Solde initial"
+              value={balance}
+              onChangeText={setBalance}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+            />
+          </MotionView>
 
+          <MotionView index={3}>
           <Text style={styles.label}>Type</Text>
           <View style={styles.chips}>
             {TYPES.map((t) => (
@@ -86,7 +96,9 @@ export default function NewAccountScreen() {
               </Pressable>
             ))}
           </View>
+          </MotionView>
 
+          <MotionView index={4}>
           <Text style={styles.label}>Devise</Text>
           <View style={styles.chips}>
             {CURRENCIES.map((c) => (
@@ -99,11 +111,21 @@ export default function NewAccountScreen() {
               </Pressable>
             ))}
           </View>
+          </MotionView>
+
+          <View style={styles.filler}>
+            <StickerScatter
+              left={{ emoji: '💳', tint: STICKER_TINTS.card }}
+              right={{ emoji: '🪙', tint: STICKER_TINTS.coin }}
+            />
+          </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
-          <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          <MotionView index={5}>
+            <Button title="Enregistrer" onPress={onSubmit} loading={saving} />
+            <Button title="Annuler" variant="ghost" onPress={() => router.back()} />
+          </MotionView>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -113,7 +135,10 @@ export default function NewAccountScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  container: { padding: spacing.xl },
+  container: { padding: spacing.xl, flexGrow: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.xl },
+  titleFlex: { flex: 1, marginBottom: 0 },
+  filler: { flex: 1, justifyContent: 'center', minHeight: 170 },
   title: { fontSize: fontSize.xl, fontWeight: '800', color: colors.foreground, marginBottom: spacing.xl },
   label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.foreground, marginBottom: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },

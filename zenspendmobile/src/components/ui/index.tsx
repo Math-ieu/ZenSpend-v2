@@ -13,7 +13,15 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { colors, radius, spacing, fontSize } from '../../theme';
+import { FloatingStickers } from '../FloatingStickers';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // ---- Avatar ----------------------------------------------------------------
 
@@ -85,18 +93,29 @@ export function Button({
   const isDanger = variant === 'danger';
   const isGhost = variant === 'ghost';
   const isFilled = isPrimary || isDanger;
+
+  // Subtle press feedback: scale down slightly while held.
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={() => {
+        scale.value = withTiming(0.97, { duration: 90 });
+      }}
+      onPressOut={() => {
+        scale.value = withTiming(1, { duration: 140 });
+      }}
       disabled={disabled || loading}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         isPrimary && styles.buttonPrimary,
         isDanger && styles.buttonDanger,
         variant === 'secondary' && styles.buttonSecondary,
         isGhost && styles.buttonGhost,
         (disabled || loading) && styles.buttonDisabled,
-        pressed && styles.buttonPressed,
+        animatedStyle,
         style,
       ]}
     >
@@ -112,7 +131,7 @@ export function Button({
           {title}
         </Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -123,16 +142,18 @@ interface FieldProps extends TextInputProps {
   error?: string;
   /** Optional leading icon (Ionicons name). */
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Optional override for the input container (e.g. pill shape on auth screens). */
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
-export function Field({ label, error, icon, style, secureTextEntry, ...rest }: FieldProps) {
+export function Field({ label, error, icon, style, containerStyle, secureTextEntry, ...rest }: FieldProps) {
   const isPassword = !!secureTextEntry;
   const [hidden, setHidden] = useState(isPassword);
 
   return (
     <View style={styles.fieldWrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={[styles.inputRow, !!error && styles.inputError]}>
+      <View style={[styles.inputRow, !!error && styles.inputError, containerStyle]}>
         {icon ? <Ionicons name={icon} size={18} color={colors.muted} style={styles.inputIcon} /> : null}
         <TextInput
           placeholderTextColor={colors.muted}
@@ -167,6 +188,7 @@ export function ProgressBar({ progress, color = colors.primary }: { progress: nu
 export function EmptyState({ title, message }: { title: string; message?: string }) {
   return (
     <View style={styles.empty}>
+      <FloatingStickers compact style={styles.emptyArt} />
       <Text style={styles.emptyTitle}>{title}</Text>
       {message ? <Text style={styles.emptyMessage}>{message}</Text> : null}
     </View>
@@ -233,6 +255,7 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', borderRadius: radius.full },
   empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
+  emptyArt: { marginBottom: spacing.lg },
   emptyTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.foreground, marginBottom: spacing.xs },
   emptyMessage: { fontSize: fontSize.sm, color: colors.muted, textAlign: 'center', paddingHorizontal: spacing.xl },
 });
