@@ -8,6 +8,7 @@ import { authApi, SignupData } from '../api/auth';
 import { setOnSessionExpired } from '../api/client';
 import { tokenStore } from '../api/tokenStore';
 import { userApi } from '../api/resources';
+import { USE_MOCKS, MOCK_USER } from '../lib/mockData';
 import type { User } from '../types';
 
 interface AuthContextType {
@@ -49,6 +50,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Restore a cached session on cold start.
   useEffect(() => {
+    // Design / display mode: skip auth and inject a mock user.
+    if (USE_MOCKS) {
+      setUser(MOCK_USER as User);
+      setOnboardingCompleted(true);
+      setIsLoading(false);
+      return;
+    }
     (async () => {
       try {
         const [token, cachedUser] = await Promise.all([

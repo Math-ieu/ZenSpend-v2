@@ -1,7 +1,8 @@
 // Shared presentational primitives for the ZenSpend mobile UI.
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -11,7 +12,49 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, fontSize } from '../../theme';
+
+// ---- Avatar ----------------------------------------------------------------
+
+export function Avatar({
+  name,
+  uri,
+  size = 44,
+  onPress,
+}: {
+  name?: string;
+  uri?: string;
+  size?: number;
+  onPress?: () => void;
+}) {
+  const initials =
+    (name || '')
+      .split(' ')
+      .map((p) => p.trim()[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '?';
+
+  const circle = { width: size, height: size, borderRadius: size / 2 } as const;
+  const content = uri ? (
+    <Image source={{ uri }} style={circle} />
+  ) : (
+    <View style={[styles.avatar, circle]}>
+      <Text style={[styles.avatarText, { fontSize: size * 0.4 }]}>{initials}</Text>
+    </View>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} hitSlop={8} style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}>
+        {content}
+      </Pressable>
+    );
+  }
+  return content;
+}
 
 // ---- Card ------------------------------------------------------------------
 
@@ -78,17 +121,31 @@ export function Button({
 interface FieldProps extends TextInputProps {
   label?: string;
   error?: string;
+  /** Optional leading icon (Ionicons name). */
+  icon?: keyof typeof Ionicons.glyphMap;
 }
 
-export function Field({ label, error, style, ...rest }: FieldProps) {
+export function Field({ label, error, icon, style, secureTextEntry, ...rest }: FieldProps) {
+  const isPassword = !!secureTextEntry;
+  const [hidden, setHidden] = useState(isPassword);
+
   return (
     <View style={styles.fieldWrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TextInput
-        placeholderTextColor={colors.muted}
-        style={[styles.input, !!error && styles.inputError, style]}
-        {...rest}
-      />
+      <View style={[styles.inputRow, !!error && styles.inputError]}>
+        {icon ? <Ionicons name={icon} size={18} color={colors.muted} style={styles.inputIcon} /> : null}
+        <TextInput
+          placeholderTextColor={colors.muted}
+          style={[styles.inputField, style]}
+          secureTextEntry={isPassword && hidden}
+          {...rest}
+        />
+        {isPassword ? (
+          <Pressable onPress={() => setHidden((h) => !h)} hitSlop={8} style={styles.eyeBtn}>
+            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={18} color={colors.muted} />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
@@ -124,6 +181,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  avatar: {
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: colors.white, fontWeight: '800' },
   button: {
     height: 48,
     borderRadius: radius.md,
@@ -142,16 +205,24 @@ const styles = StyleSheet.create({
   buttonTextSecondary: { color: colors.foreground },
   fieldWrap: { marginBottom: spacing.lg },
   label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.foreground, marginBottom: spacing.xs },
-  input: {
-    height: 48,
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    fontSize: fontSize.md,
-    color: colors.foreground,
     backgroundColor: colors.white,
   },
+  inputIcon: { marginRight: spacing.sm },
+  inputField: {
+    flex: 1,
+    height: '100%',
+    fontSize: fontSize.md,
+    color: colors.foreground,
+  },
+  eyeBtn: { paddingLeft: spacing.sm },
   inputError: { borderColor: colors.error },
   errorText: { color: colors.error, fontSize: fontSize.xs, marginTop: spacing.xs },
   progressTrack: {

@@ -15,7 +15,12 @@
       "Bash(rm -rf ~/Android/Sdk/cmdline-tools/latest /tmp/ct)",
       "Bash(unzip -q /tmp/cmdline-tools.zip -d /tmp/ct)",
       "Bash(mv /tmp/ct/cmdline-tools ~/Android/Sdk/cmdline-tools/latest)",
-      "Bash(pkill -f \"manage.py runserver\")"
+      "Bash(pkill -f \"manage.py runserver\")",
+      "Bash(~/Android/Sdk/cmdline-tools/latest/bin/avdmanager list *)",
+      "Bash(grep -iA4 \"pixel 6\\\\b\")",
+      "Bash(nohup venv/bin/python manage.py runserver 0.0.0.0:8000)",
+      "Bash(echo \"backend lancé \\(pid $!\\)\")",
+      "Bash(awk '/class CustomUser|class User\\\\\\(|class.*AbstractUser|class.*AbstractBaseUser/{f=1} f{print NR\": \"$0} /^class /{if\\(f && NR>start+2 && $0 !~ /User/\\){exit}} {if\\($0 ~ /class.*User/\\)start=NR}' models.py)"
     ]
   }
 }

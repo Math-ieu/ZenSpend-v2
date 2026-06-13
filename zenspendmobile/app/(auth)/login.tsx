@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Button, Field } from '../../src/components/ui';
 import { useAuth } from '../../src/context/AuthContext';
-import { colors, spacing, fontSize } from '../../src/theme';
+import { colors, spacing, fontSize, radius } from '../../src/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -45,33 +46,47 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>ZenSpend</Text>
-            <Text style={styles.subtitle}>Reprenez le contrôle de vos finances</Text>
+            <View style={styles.badge}>
+              <Ionicons name="wallet" size={32} color={colors.white} />
+            </View>
+            <Text style={styles.brand}>ZenSpend</Text>
+            <Text style={styles.title}>Bon retour</Text>
+            <Text style={styles.subtitle}>Connectez-vous pour gérer vos finances</Text>
           </View>
 
-          <Field
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="vous@exemple.com"
-          />
-          <Field
-            label="Mot de passe"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-          />
+          <View style={styles.card}>
+            <Field
+              label="Email"
+              icon="mail-outline"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              placeholder="vous@exemple.com"
+            />
+            <Field
+              label="Mot de passe"
+              icon="lock-closed-outline"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="••••••••"
+            />
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Link href="/(auth)/forgot-password" style={styles.forgot}>
+              Mot de passe oublié ?
+            </Link>
 
-          <Button title="Se connecter" onPress={onSubmit} loading={loading} />
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-          <Link href="/(auth)/forgot-password" style={styles.linkMuted}>
-            Mot de passe oublié ?
-          </Link>
+            <Button title="Se connecter" onPress={onSubmit} loading={loading} />
+          </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Pas encore de compte ? </Text>
@@ -86,14 +101,59 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: colors.surface },
   flex: { flex: 1 },
   container: { padding: spacing.xl, flexGrow: 1, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: spacing.xxl },
-  logo: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.primary },
+
+  header: { alignItems: 'center', marginBottom: spacing.xl },
+  badge: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  brand: { fontSize: fontSize.md, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 },
+  title: { fontSize: 28, fontWeight: '800', color: colors.foreground, marginTop: spacing.sm, letterSpacing: -0.5 },
   subtitle: { fontSize: fontSize.sm, color: colors.muted, marginTop: spacing.xs },
-  error: { color: colors.error, fontSize: fontSize.sm, marginBottom: spacing.md, textAlign: 'center' },
-  linkMuted: { color: colors.muted, fontSize: fontSize.sm, textAlign: 'center', marginTop: spacing.lg },
+
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  forgot: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    textAlign: 'right',
+    marginBottom: spacing.lg,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FEF2F2',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  errorText: { color: colors.error, fontSize: fontSize.sm, flex: 1 },
+
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
   footerText: { color: colors.muted, fontSize: fontSize.sm },
   link: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '700' },

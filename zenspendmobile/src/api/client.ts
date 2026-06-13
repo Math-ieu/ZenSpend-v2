@@ -7,6 +7,7 @@
 //  - notify the auth layer when the session is irrecoverable.
 import { API_BASE_URL } from './config';
 import { tokenStore } from './tokenStore';
+import { USE_MOCKS, getMock } from '../lib/mockData';
 
 type Json = Record<string, any>;
 
@@ -93,6 +94,20 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  // Design / display mode: short-circuit reads to local fixtures (no network).
+  if (USE_MOCKS) {
+    const method = options.method || 'GET';
+    if (method === 'GET') {
+      const mock = getMock(endpoint);
+      if (mock !== undefined) {
+        await new Promise((r) => setTimeout(r, 150)); // petit délai réaliste
+        return mock as T;
+      }
+    }
+    // Writes (POST/PUT/PATCH/DELETE) : on renvoie un succès neutre.
+    return (options.body ?? {}) as T;
+  }
+
   let accessToken = options.auth === false ? null : await tokenStore.getAccess();
 
   let res: Response;
