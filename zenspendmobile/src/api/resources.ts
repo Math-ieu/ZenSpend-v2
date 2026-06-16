@@ -117,6 +117,42 @@ export const dashboardApi = {
   categoryDistribution: () => apiRequest('/analytics/category-distribution/'),
 };
 
+// ---- bank integration (DSP2 / GoCardless) ----------------------------------
+
+export interface BankLinkSessionResponse {
+  status: string;
+  link_session?: {
+    session_id: string;
+    provider: string;
+    link_url: string;
+    expires_at: string;
+    state: string;
+  };
+}
+
+export const bankApi = {
+  // Provider availability + whether a link session can be created.
+  status: () => apiRequest('/integrations/banking/status/'),
+  // Starts a consent flow: returns the hosted bank link URL to open.
+  createLinkSession: (payload: { redirect_uri?: string; state?: string }) =>
+    apiRequest<BankLinkSessionResponse>('/integrations/banking/link-session/', {
+      method: 'POST',
+      body: payload,
+    }),
+  // Registers the connection (+ optional accounts) once the user consented.
+  processCallback: (payload: {
+    external_connection_id: string;
+    provider?: string;
+    institution_name?: string;
+    status?: string;
+    metadata?: Record<string, any>;
+    accounts?: any[];
+  }) => apiRequest('/integrations/banking/callback/', { method: 'POST', body: payload }),
+  // Pulls transactions from the provider and imports them (idempotent).
+  syncFromProvider: (payload: { connection_id: number }) =>
+    apiRequest('/integrations/banking/sync-from-provider/', { method: 'POST', body: payload }),
+};
+
 // ---- user / preferences ----------------------------------------------------
 
 export const userApi = {

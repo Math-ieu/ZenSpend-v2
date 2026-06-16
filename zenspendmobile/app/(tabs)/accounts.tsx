@@ -7,6 +7,7 @@ import { MotionView } from '../../src/components/motion';
 import { Card, EmptyState } from '../../src/components/ui';
 import { useFetch } from '../../src/lib/useFetch';
 import { accountsApi } from '../../src/api/resources';
+import { BANK_SYNC_ENABLED } from '../../src/api/config';
 import { formatCurrency } from '../../src/lib/format';
 import type { Account } from '../../src/types';
 import { colors, spacing, fontSize, radius } from '../../src/theme';
@@ -31,9 +32,16 @@ export default function AccountsScreen() {
           <ScreenHeader
             title="Comptes"
             action={
-              <Pressable style={styles.addBtn} onPress={() => router.push('/new-account')}>
-                <Ionicons name="add" size={24} color={colors.white} />
-              </Pressable>
+              <View style={styles.headerActions}>
+                {BANK_SYNC_ENABLED && (
+                  <Pressable style={styles.bankBtn} onPress={() => router.push('/connect-bank')}>
+                    <Ionicons name="link-outline" size={22} color={colors.primary} />
+                  </Pressable>
+                )}
+                <Pressable style={styles.addBtn} onPress={() => router.push('/new-account')}>
+                  <Ionicons name="add" size={24} color={colors.white} />
+                </Pressable>
+              </View>
             }
           />
         </MotionView>
@@ -90,11 +98,22 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   content: { flex: 1, padding: spacing.lg },
   flex: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   addBtn: {
     width: 44,
     height: 44,
     borderRadius: radius.full,
     backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bankBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

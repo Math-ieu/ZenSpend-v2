@@ -193,12 +193,21 @@ class BankCallbackView(APIView):
             },
         )
 
+        accounts = payload.get('accounts', [])
+        # If the caller did not supply accounts, discover them server-side from
+        # the provider (avoids the client fabricating account data).
+        if not accounts and client.provider_name == provider:
+            try:
+                accounts = client.fetch_connection_accounts(external_connection_id)
+            except BankProviderError:
+                accounts = []
+
         connected_accounts = _upsert_callback_accounts(
             user=request.user,
             provider=provider,
             external_connection_id=external_connection_id,
             institution_name=payload.get('institution_name', ''),
-            accounts=payload.get('accounts', []),
+            accounts=accounts,
         )
 
         return Response(

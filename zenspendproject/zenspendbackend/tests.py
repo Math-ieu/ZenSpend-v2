@@ -103,6 +103,33 @@ class BankIntegrationApiTests(APITestCase):
 		self.assertEqual(account.connection_details['external_account_id'], 'acc_test_1')
 
 	@patch.dict('os.environ', {'BANK_PROVIDER': 'mock'}, clear=False)
+	def test_callback_without_accounts_fetches_them_from_provider(self):
+		# The client omits accounts; the backend discovers them server-side and
+		# a follow-up provider sync links transactions onto the created account.
+		response = self.client.post(
+			reverse('bank-callback'),
+			{'external_connection_id': 'conn_auto_1', 'institution_name': 'Mock Bank'},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data['accounts_connected'], 1)
+
+		account = BankAccount.objects.get(user=self.user, name='Compte principal')
+		self.assertEqual(account.connection_details['external_account_id'], 'conn_auto_1_main')
+
+		connection_id = response.data['bank_connection']['id']
+		sync_response = self.client.post(
+			reverse('bank-sync-from-provider'),
+			{'connection_id': connection_id},
+			format='json',
+		)
+		self.assertEqual(sync_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(sync_response.data['sync_result']['created'], 3)
+		# Every imported transaction is attached to the auto-created account.
+		self.assertEqual(Transaction.objects.filter(user=self.user, account=account).count(), 3)
+
+	@patch.dict('os.environ', {'BANK_PROVIDER': 'mock'}, clear=False)
 	def test_sync_endpoint_is_idempotent_for_same_external_transaction(self):
 		callback_response = self.client.post(
 			reverse('bank-callback'),
@@ -199,6 +226,111 @@ class BankIntegrationApiTests(APITestCase):
 
 		self.assertEqual(Transaction.objects.filter(user=self.user).count(), 3)
 		self.assertEqual(ExternalTransaction.objects.count(), 3)
+
+
+class _FakeResponse:
+	def __init__(self, payload, status_code=200):
+		self._payload = payload
+		self.status_code = status_code
+		self.text = str(payload)
+
+	def json(self):
+		return self._payload
+
+
+class _FakeSession:
+	"""Route GoCardless HTTP calls to canned payloads keyed by URL fragment."""
+
+	def __init__(self, routes):
+		self.routes = routes
+		self.calls = []
+
+	def _resolve(self, url):
+		for fragment, payload in self.routes.items():
+			if fragment in url:
+				return _FakeResponse(payload)
+		return _FakeResponse({'detail': 'not found'}, status_code=404)
+
+	def post(self, url, **kwargs):
+		self.calls.append(('POST', url))
+		return self._resolve(url)
+
+	def get(self, url, **kwargs):
+		self.calls.append(('GET', url))
+		return self._resolve(url)
+
+
+class GoCardlessProviderClientTests(APITestCase):
+	"""Unit tests for the GoCardless client (HTTP layer mocked)."""
+
+	def _build_client(self, routes):
+		from .services.bank_provider import BankProviderConfig, GoCardlessBankProviderClient
+
+		config = BankProviderConfig(
+			provider='gocardless',
+			base_url='',
+			client_id='secret-id',
+			client_secret='secret-key',
+			institution_id='SANDBOXFINANCE_SFIN0000',
+			country='fr',
+		)
+		client = GoCardlessBankProviderClient(config)
+		client._session = _FakeSession(routes)
+		return client
+
+	def test_create_link_session_returns_requisition_link(self):
+		client = self._build_client({
+			'token/new/': {'access': 'tok-123', 'refresh': 'ref-123'},
+			'requisitions/': {'id': 'req-abc', 'link': 'https://ob.gocardless.com/psd2/start/req-abc'},
+		})
+
+		session = client.create_link_session(redirect_uri='https://app.zenspend.test/callback')
+
+		self.assertEqual(session.session_id, 'req-abc')
+		self.assertEqual(session.provider, 'gocardless')
+		self.assertTrue(session.link_url.startswith('https://ob.gocardless.com'))
+
+	def test_fetch_connection_transactions_normalizes_booked_and_pending(self):
+		client = self._build_client({
+			'token/new/': {'access': 'tok-123'},
+			'requisitions/req-abc/': {'accounts': ['acc-1']},
+			'accounts/acc-1/transactions/': {
+				'transactions': {
+					'booked': [
+						{
+							'transactionId': 'tx-1',
+							'bookingDate': '2026-04-14',
+							'transactionAmount': {'amount': '-64.90', 'currency': 'EUR'},
+							'remittanceInformationUnstructured': 'Courses',
+							'creditorName': 'Supermarche',
+						},
+					],
+					'pending': [
+						{
+							'transactionId': 'tx-2',
+							'valueDate': '2026-04-15',
+							'transactionAmount': {'amount': '2650.00', 'currency': 'EUR'},
+							'remittanceInformationUnstructured': 'Salaire',
+							'debtorName': 'Employeur',
+						},
+					],
+				},
+			},
+		})
+
+		transactions = client.fetch_connection_transactions('req-abc')
+
+		self.assertEqual(len(transactions), 2)
+		booked = next(t for t in transactions if t['id'] == 'tx-1')
+		self.assertEqual(booked['amount'], '-64.90')
+		self.assertEqual(booked['account_external_id'], 'acc-1')
+		self.assertEqual(booked['status'], 'cleared')
+		self.assertEqual(booked['payee'], 'Supermarche')
+		self.assertEqual(booked['date'], '2026-04-14T00:00:00+00:00')
+
+		pending = next(t for t in transactions if t['id'] == 'tx-2')
+		self.assertEqual(pending['status'], 'pending')
+		self.assertEqual(pending['payee'], 'Employeur')
 
 
 class UserSegmentApiTests(APITestCase):
@@ -761,3 +893,104 @@ class RecurringTransactionTests(APITestCase):
 		self.assertGreater(schedule.next_occurrence, timezone.now())
 		# Idempotent: running again generates nothing.
 		self.assertEqual(generate_due_recurring_transactions(), 0)
+
+
+class _FakeRequestSession:
+	"""Route Enable Banking requests.request(method, url, ...) to canned payloads."""
+
+	def __init__(self, routes):
+		self.routes = routes
+		self.calls = []
+
+	def request(self, method, url, **kwargs):
+		self.calls.append((method, url))
+		for fragment, payload in self.routes.items():
+			if fragment in url:
+				return _FakeResponse(payload)
+		return _FakeResponse({'detail': 'not found'}, status_code=404)
+
+
+class EnableBankingProviderClientTests(APITestCase):
+	"""Unit tests for the Enable Banking client (HTTP + JWT layers mocked)."""
+
+	def _build_client(self, routes):
+		import time as _time
+		from .services.bank_provider import BankProviderConfig, EnableBankingBankProviderClient
+
+		config = BankProviderConfig(
+			provider='enablebanking',
+			base_url='',
+			client_id='app-id-123',
+			client_secret='',
+			institution_id='Mock ASPSP',
+			country='fr',
+			private_key='dummy-key',
+		)
+		client = EnableBankingBankProviderClient(config)
+		client._session = _FakeRequestSession(routes)
+		# Bypass real RS256 signing (no key material needed in tests).
+		client._token = 'fake-jwt'
+		client._token_exp = _time.time() + 9999
+		return client
+
+	def test_create_link_session_returns_consent_url(self):
+		client = self._build_client({
+			'auth': {'url': 'https://consent.enablebanking.com/start/auth-1', 'authorization_id': 'auth-1'},
+		})
+
+		session = client.create_link_session(redirect_uri='https://app.zenspend.test/callback')
+
+		self.assertEqual(session.session_id, 'auth-1')
+		self.assertEqual(session.provider, 'enablebanking')
+		self.assertTrue(session.link_url.startswith('https://consent.enablebanking.com'))
+
+	def test_create_session_exchanges_code(self):
+		client = self._build_client({
+			'sessions': {'session_id': 'sess-1', 'accounts': [{'uid': 'acc-1'}]},
+		})
+
+		session = client.create_session('the-code')
+
+		self.assertEqual(session['session_id'], 'sess-1')
+
+	def test_fetch_connection_transactions_normalizes_credit_and_debit(self):
+		client = self._build_client({
+			'sessions/sess-1': {'accounts': [{'uid': 'acc-1'}]},
+			'accounts/acc-1/transactions': {
+				'transactions': [
+					{
+						'entry_reference': 'tx-1',
+						'booking_date': '2026-04-14',
+						'transaction_amount': {'amount': '64.90', 'currency': 'EUR'},
+						'credit_debit_indicator': 'DBIT',
+						'status': 'BOOK',
+						'remittance_information': ['Courses'],
+						'creditor': {'name': 'Supermarche'},
+					},
+					{
+						'entry_reference': 'tx-2',
+						'value_date': '2026-04-13',
+						'transaction_amount': {'amount': '2650.00', 'currency': 'EUR'},
+						'credit_debit_indicator': 'CRDT',
+						'status': 'PDNG',
+						'remittance_information': ['Salaire'],
+						'debtor': {'name': 'Employeur'},
+					},
+				],
+			},
+		})
+
+		transactions = client.fetch_connection_transactions('sess-1')
+
+		self.assertEqual(len(transactions), 2)
+		debit = next(t for t in transactions if t['id'] == 'tx-1')
+		self.assertEqual(debit['amount'], '-64.90')
+		self.assertEqual(debit['account_external_id'], 'acc-1')
+		self.assertEqual(debit['status'], 'cleared')
+		self.assertEqual(debit['payee'], 'Supermarche')
+		self.assertEqual(debit['date'], '2026-04-14T00:00:00+00:00')
+
+		credit = next(t for t in transactions if t['id'] == 'tx-2')
+		self.assertEqual(credit['amount'], '2650.00')
+		self.assertEqual(credit['status'], 'pending')
+		self.assertEqual(credit['payee'], 'Employeur')

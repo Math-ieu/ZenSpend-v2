@@ -8,6 +8,7 @@ djangorestframework_simplejwt
 dnspython
 psycopg2-binary
 PyJWT
+cryptography
 pymongo
 sqlparse
 python-dotenv

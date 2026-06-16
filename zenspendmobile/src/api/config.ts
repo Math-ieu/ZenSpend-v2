@@ -10,3 +10,8 @@ const DEFAULT_DEV_URL =
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || DEFAULT_DEV_URL;
+
+// Bank sync (DSP2 read-only import) is deferred to a post-MVP release. The
+// connect-bank flow stays in the codebase but its entry point is hidden until
+// EXPO_PUBLIC_BANK_SYNC=true, so the shipped MVP exposes no half-wired feature.
+export const BANK_SYNC_ENABLED = process.env.EXPO_PUBLIC_BANK_SYNC === 'true';

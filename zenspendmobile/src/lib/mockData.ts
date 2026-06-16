@@ -92,10 +92,58 @@ const mocks: Record<string, unknown> = {
   ],
 
   '/user-preferences/': { onboarding_completed: true },
+
+  // Bank integration availability (read by the connect-bank screen).
+  '/integrations/banking/status/': {
+    status: 'ok',
+    integration: { provider: 'mock', configured: true },
+    capabilities: { create_link_session: true },
+  },
 };
 
 /** Returns mock data for a GET endpoint, or undefined if none is defined. */
 export function getMock(endpoint: string): unknown | undefined {
   const path = endpoint.split('?')[0];
   return mocks[path];
+}
+
+/**
+ * Mock responses for bank-integration writes (POST), so the connect-bank flow
+ * is exercisable end-to-end without a backend. The link-session URL points back
+ * at the app's deep link so the consent "return" re-enters connect-bank.
+ */
+export function getMockBankWrite(endpoint: string, body: any): unknown | undefined {
+  if (endpoint.includes('/integrations/banking/link-session/')) {
+    const redirect = body?.redirect_uri || 'zenspend://connect-bank';
+    const connectionId = `mock_${Date.now()}`;
+    const state = body?.state || '';
+    const sep = redirect.includes('?') ? '&' : '?';
+    return {
+      status: 'success',
+      link_session: {
+        session_id: connectionId,
+        provider: 'mock',
+        link_url: `${redirect}${sep}external_connection_id=${connectionId}&provider=mock&state=${state}`,
+        expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+        state,
+      },
+    };
+  }
+  if (endpoint.includes('/integrations/banking/callback/')) {
+    return {
+      status: 'success',
+      created: true,
+      bank_connection: { id: 1, provider: 'mock', external_connection_id: body?.external_connection_id, status: 'connected' },
+      accounts_connected: 1,
+    };
+  }
+  if (endpoint.includes('/integrations/banking/sync-from-provider/')) {
+    return {
+      status: 'success',
+      connection_id: body?.connection_id ?? 1,
+      fetched_transactions: 3,
+      sync_result: { created: 3, updated: 0, duplicates: 0, skipped: 0 },
+    };
+  }
+  return undefined;
 }
